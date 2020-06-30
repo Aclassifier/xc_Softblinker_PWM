@@ -15,7 +15,7 @@
 #define AUDIOMUX_VERSION_STR "0.0.4"
 #define AUDIOMUX_VERSION_NUM   0004
 
-// 0004     30Jun2020           softblinker_context_t and pwm_context_t work!
+// 0004     30Jun2020           softblinker_context_t and pwm_context_t work!!
 // 0003     30Jun2020           Save before next, really
 // 0002     28Jun2020  PWM=001  To get xflash to work:
 //                              XCORE-200-EXPLORER.xn (xTIMEcomposer 14.4.1)
