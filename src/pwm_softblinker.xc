@@ -195,26 +195,55 @@ void pwm_for_LED_task (
     }
 }
 
+void set_percentage (
+        pwm_context_t       &pwm_context,
+        out buffered port:1 outP1,
+        const percentage_t  percentage)
+{
+    pwm_context.port_activated_percentage = percentage;
+
+    if (pwm_context.port_activated_percentage == 100) { // No need to involve any timerafter and get a short off blip
+        pwm_context.pwm_running = false;
+        ACTIVATE_PORT(pwm_context.port_pin_sign);
+    } else if (pwm_context.port_activated_percentage == 0) { // No need to involve any timerafter and get a short on blink
+        pwm_context.pwm_running = false;
+        DEACTIVATE_PORT(pwm_context.port_pin_sign);
+    } else if (not pwm_context.pwm_running) {
+        pwm_context.pwm_running = true;
+        pwm_context.tmr :> pwm_context.timeout; // immediate timeout
+    } else { // pwm_running already
+        // No code
+        // Don't disturb running timerafter, just let it use the new port_activated_percentage when it gets there
+    }
+}
+
 
 [[combinable]]
 void softblinker_pwm_for_LED_task (
-        server pwm_if         if_pwm,
         server softblinker_if if_softblinker,
         out buffered port:1   outP1)
 {
 
-    pwm_context_t pwm_context;
+    pwm_context_t         pwm_context;
+    softblinker_context_t softblinker_context;
 
-    pwm_context.port_pin_sign = PWM_PORT_PIN_SIGN;
+    softblinker_context.pwm_running = false;
+    softblinker_context.pwm_one_percent_ticks = SOFTBLINK_DEFAULT_ONE_PERCENT_MS * XS1_TIMER_KHZ;
+    softblinker_context.now_percentage        = SOFTBLINK_DEFAULT_MAX_PERCENTAGE; // [-1..101]
+    softblinker_context.max_percentage        = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
+    softblinker_context.min_percentage        = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
+    softblinker_context.inc_percentage        = (-1); // [-1,+1]
 
-    debug_print ("port_pin_sign %u\n", pwm_context.port_pin_sign);
-
+    pwm_context.port_pin_sign             = PWM_PORT_PIN_SIGN;
     pwm_context.pwm_one_percent_ticks     = PWM_ONE_PERCENT_TICS; // 10 uS. So 99% means 990 us activated and 10 us deactivated
     pwm_context.port_activated_percentage = 100;                  // This implies [1], [2] and [3] below
     pwm_context.pwm_running               = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
     pwm_context.port_is                   = activated;            // [2] "LED on"
                                                                   //
     ACTIVATE_PORT(pwm_context.port_pin_sign);                     // [3]
+
+    softblinker_context.tmr :> softblinker_context.timeout;
+    softblinker_context.timeout += softblinker_context.pwm_one_percent_ticks;
 
     while (1) {
         select {
@@ -230,23 +259,50 @@ void softblinker_pwm_for_LED_task (
                 }
             } break;
 
-            case if_pwm.set_percentage (const percentage_t percentage) : {
+            case (softblinker_context.pwm_running) => softblinker_context.tmr when timerafter(softblinker_context.timeout) :> void: {
+                bool min_set;
+                bool max_set;
 
-                pwm_context.port_activated_percentage = percentage;
+                softblinker_context.timeout += softblinker_context.pwm_one_percent_ticks;
 
-                if (pwm_context.port_activated_percentage == 100) { // No need to involve any timerafter and get a short off blip
-                    pwm_context.pwm_running = false;
-                    ACTIVATE_PORT(pwm_context.port_pin_sign);
-                } else if (pwm_context.port_activated_percentage == 0) { // No need to involve any timerafter and get a short on blink
-                    pwm_context.pwm_running = false;
-                    DEACTIVATE_PORT(pwm_context.port_pin_sign);
-                } else if (not pwm_context.pwm_running) {
-                    pwm_context.pwm_running = true;
-                    pwm_context.tmr :> pwm_context.timeout; // immediate timeout
+                softblinker_context.now_percentage += softblinker_context.inc_percentage; // [0..100] but [-1..101] possible if 0 or 100 was just set in set_sofblink_percentages
+                {softblinker_context.now_percentage, min_set, max_set} =
+                        in_range_signed_min_max_set (softblinker_context.now_percentage, softblinker_context.min_percentage, softblinker_context.max_percentage); // [0..100]
+
+                if ((min_set) or (max_set)) { // Send 100 and 0 only once
+                    softblinker_context.inc_percentage = (-softblinker_context.inc_percentage); // Change sign for next timeout to scan in the other direction
+                } else {
+                    set_percentage (pwm_context, outP1, (percentage_t) softblinker_context.now_percentage); // [0..100]
+                }
+
+            } break;
+
+            case if_softblinker.set_sofblink_percentages (const percentage_t max_percentage_, const percentage_t min_percentage_): {
+                debug_print ("set_sofblink_percentages %u %u\n", max_percentage_, min_percentage_);
+
+                // Conflict with jumping above or below present range resolved with in_range_signed_min_max_set in timerafter
+
+                                                                                     // Also overflow/underflow problems solved there:
+                softblinker_context.max_percentage = (percentage_t) max_percentage_; // 100 here and max_percentage may be incrmeneted to 101 in timerafter
+                softblinker_context.min_percentage = (percentage_t) min_percentage_; //   0 here and min_percentage may be decremented to  -1 in timerafter
+
+                if (softblinker_context.max_percentage == softblinker_context.min_percentage) {
+                    softblinker_context.pwm_running = false;
+                    set_percentage (pwm_context, outP1, softblinker_context.max_percentage);
+                    // No code, timerafter will do it
+                } else if (not softblinker_context.pwm_running) {
+                    softblinker_context.pwm_running = true;
+                    softblinker_context.tmr :> softblinker_context.timeout; // immediate timeout
                 } else { // pwm_running already
                     // No code
-                    // Don't disturb running timerafter, just let it use the new port_activated_percentage when it gets there
+                    // Don't disturb running timerafter
                 }
+            } break;
+
+            case if_softblinker.set_one_percent_ms (const unsigned ms): {
+                debug_print ("set_one_percent_ms %u\n", ms);
+
+                softblinker_context.pwm_one_percent_ticks = (ms * XS1_TIMER_KHZ);
             } break;
         }
     }

@@ -58,6 +58,11 @@
             server pwm_if       if_pwm,
             out buffered port:1 outP1);
 
+    [[combinable]]
+    void softblinker_pwm_for_LED_task (
+            server softblinker_if if_softblinker,
+            out buffered port:1   outP1);
+
 #else
     #error Nested include PWM_SOFTBLINKER_H_
 #endif /* PWM_SOFTBLINKER_H_ */

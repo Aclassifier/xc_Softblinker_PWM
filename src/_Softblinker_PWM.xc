@@ -47,15 +47,15 @@
 [[combinable]]
 void Softblinker_pwm_button_client_task (
         server button_if      i_buttons_in[BUTTONS_NUM_CLIENTS],
-        client softblinker_if if_softblinker[SOFTBLINKER_SOFTBLINKER_PWM_NUM_CLIENTS])
+        client softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS])
 {
     timer    tmr;
     time32_t time_ticks; // Ticks to 100 in 1 us
 
     // STARTUP
-    unsigned const params_onepercent_max_min [SOFTBLINKER_SOFTBLINKER_PWM_NUM_CLIENTS][3] = PARAMS_ONEPERCENTMILLIS_MAXPRO_MINPRO;
+    unsigned const params_onepercent_max_min [CONFIG_NUM_SOFTBLIKER_LEDS][3] = PARAMS_ONEPERCENTMILLIS_MAXPRO_MINPRO;
 
-    for (unsigned ix = 0; ix < SOFTBLINKER_SOFTBLINKER_PWM_NUM_CLIENTS; ix++) {
+    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
         if_softblinker[ix].set_one_percent_ms       (params_onepercent_max_min[ix][0]);
         if_softblinker[ix].set_sofblink_percentages (params_onepercent_max_min[ix][1], params_onepercent_max_min[ix][2]);
     }
