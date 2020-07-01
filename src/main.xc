@@ -40,7 +40,7 @@
     out buffered port:1 outP1_d4_led      = on tile[0]: XS1_PORT_1F; // xCORE XA J1 D13 XCORE-XA-MODULE LED D4 (LOW IS ON)
     //
     in  buffered port:1 inP_button_left   = on tile[0]: XS1_PORT_1K; // External xCORE XA J9 P34. XCORE-XA-MODULE EXTERNAL BUTTON1
-    in  buffered port:1 inP_button_center = on tile[0]: XS1_PORT_1O; // External xCORE XA J9 P38. XCORE-XA-MODULE EXTERNAL BUTTON2
+    in  buffered port:1 in  P_button_center = on tile[0]: XS1_PORT_1O; // External xCORE XA J9 P38. XCORE-XA-MODULE EXTERNAL BUTTON2
     in  buffered port:1 inP_button_right  = on tile[0]: XS1_PORT_1P; // External xCORE XA J9 P39. XCORE-XA-MODULE EXTERNAL BUTTON3
 
     #define red_LED outP1_d4_led

@@ -10,7 +10,7 @@
     //
     #define CONFIG_NUM_SOFTBLIKER_LEDS 2 // 2 2 2 2 2 1 2 2 (1=yellow_LED, 2+=red_LED)
     #define CONFIG_NUM_TASKS_PER_LED   2 // 2 1 2 2 1 1 2 1
-    #define CONFIG_PAR_ON_CORES        4 // 1 2 2 3 3 3 4 4                   8-cores  10-timers 32-chanends
+    #define CONFIG_PAR_ON_CORES        1 // 1 2 2 3 3 3 4 4                   8-cores  10-timers 32-chanends
                                          // #               221: Constraints: C:  3    T:  3     C:  3      M:8472  S:1236  C:6392  D:844  (tile[0])
                                          //   #             212: Constraints: C: 2     T: 2      C:  3      M:7560  S:1036  C:5720  D:804  (tile[0])
                                          //     #           222: Constraints: C: 2     T: 2      C:  3      M:8200  S:1180  C:6184  D:836  (tile[0]) MY RUNNER UP

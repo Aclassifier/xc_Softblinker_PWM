@@ -48,16 +48,19 @@
         void set_percentage (const percentage_t percentage);
     } pwm_if;
 
+    // Only used when CONFIG_NUM_TASKS_PER_LED==2
     [[combinable]]
     void softblinker_task (
             client pwm_if         if_pwm,
             server softblinker_if if_softblinker);
 
+    // Only used when CONFIG_NUM_TASKS_PER_LED==2
     [[combinable]]
     void pwm_for_LED_task (
             server pwm_if       if_pwm,
             out buffered port:1 outP1);
 
+    // Only used when CONFIG_NUM_TASKS_PER_LED==1
     [[combinable]]
     void softblinker_pwm_for_LED_task (
             server softblinker_if if_softblinker,

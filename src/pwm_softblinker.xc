@@ -40,6 +40,7 @@ typedef struct softblinker_context_t {
     signed       inc_percentage;
 } softblinker_context_t;
 
+// Only used when CONFIG_NUM_TASKS_PER_LED==2
 [[combinable]]
 void softblinker_task (
         client pwm_if         if_pwm,
@@ -53,8 +54,6 @@ void softblinker_task (
     softblinker_context.max_percentage        = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
     softblinker_context.min_percentage        = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
     softblinker_context.inc_percentage        = (-1); // [-1,+1]
-
-    // if_pwm.set_port_in_sign (port_pin_sign);
 
     softblinker_context.tmr :> softblinker_context.timeout;
     softblinker_context.timeout += softblinker_context.pwm_one_percent_ticks;
@@ -113,14 +112,6 @@ void softblinker_task (
 
 typedef enum {activated, deactivated} port_is_e;
 
-void activeate_port (out buffered port:1 outP1, const port_pin_sign_e port_pin_sign) {
-    outP1 <: (1 xor port_pin_sign);
-}
-
-void deactiveate_port (out buffered port:1 outP1, const port_pin_sign_e port_pin_sign) {
-    outP1 <: (0 xor port_pin_sign);
-}
-
 #define ACTIVATE_PORT(sign)   do {outP1 <: (1 xor sign);} while (0) // to activated:   0 = 1 xor 1 = [1 xor active_low]
 #define DEACTIVATE_PORT(sign) do {outP1 <: (0 xor sign);} while (0) // to deactivated: 1 = 0 xor 1 = [0 xor active_low]
 
@@ -141,60 +132,130 @@ typedef struct pwm_context_t {
     port_is_e       port_is;
 } pwm_context_t;
 
-[[combinable]]
-void pwm_for_LED_task (
-        server pwm_if       if_pwm,
-        out buffered port:1 outP1)
-{
-    pwm_context_t pwm_context;
+// Only used when CONFIG_NUM_TASKS_PER_LED==2
 
-    pwm_context.port_pin_sign = PWM_PORT_PIN_SIGN;
+//#define PWM_FOR_LED_TASK_CONTEXT 0
+// #               221: Constraints: C:  3    T:  3     C:  3      M:8440  S:1220  C:6380  D:840  (tile[0])
+#define PWM_FOR_LED_TASK_CONTEXT 1
+// #               221: Constraints: C:  3    T:  3     C:  3      M:8472  S:1236  C:6392  D:844  (tile[0])
 
-    debug_print ("port_pin_sign %u\n", pwm_context.port_pin_sign);
+#if (PWM_FOR_LED_TASK_CONTEXT==0)
+    [[combinable]]
+    void pwm_for_LED_task (
+            server pwm_if       if_pwm,
+            out buffered port:1 outP1)
+    {
+        timer           tmr;
+        time32_t        timeout;
+        port_pin_sign_e port_pin_sign;
+        unsigned        pwm_one_percent_ticks;
+        time32_t        port_activated_percentage;
+        bool            pwm_running;
+        port_is_e       port_is;
 
-    pwm_context.pwm_one_percent_ticks     = PWM_ONE_PERCENT_TICS; // 10 uS. So 99% means 990 us activated and 10 us deactivated
-    pwm_context.port_activated_percentage = 100;                  // This implies [1], [2] and [3] below
-    pwm_context.pwm_running               = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
-    pwm_context.port_is                   = activated;            // [2] "LED on"
-                                                                  //
-    ACTIVATE_PORT(pwm_context.port_pin_sign);                     // [3]
+        port_pin_sign = PWM_PORT_PIN_SIGN;
 
-    while (1) {
-        select {
-            case (pwm_context.pwm_running) => pwm_context.tmr when timerafter(pwm_context.timeout) :> void: {
-                if (pwm_context.port_is == deactivated) {
-                    ACTIVATE_PORT(pwm_context.port_pin_sign);
-                    pwm_context.timeout += (pwm_context.port_activated_percentage * pwm_context.pwm_one_percent_ticks);
-                    pwm_context.port_is  = activated;
-                } else {
-                    DEACTIVATE_PORT(pwm_context.port_pin_sign);
-                    pwm_context.timeout += ((100 - pwm_context.port_activated_percentage) * pwm_context.pwm_one_percent_ticks);
-                    pwm_context.port_is  = deactivated;;
-                }
-            } break;
+        debug_print ("port_pin_sign %u\n", port_pin_sign);
 
-            case if_pwm.set_percentage (const percentage_t percentage) : {
+        pwm_one_percent_ticks     = PWM_ONE_PERCENT_TICS; // 10 uS. So 99% means 990 us activated and 10 us deactivated
+        port_activated_percentage = 100;                  // This implies [1], [2] and [3] below
+        pwm_running               = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
+        port_is                   = activated;            // [2] "LED on"
+                                                                      //
+        ACTIVATE_PORT(port_pin_sign);                     // [3]
 
-                pwm_context.port_activated_percentage = percentage;
+        while (1) {
+            select {
+                case (pwm_running) => tmr when timerafter(timeout) :> void: {
+                    if (port_is == deactivated) {
+                        ACTIVATE_PORT(port_pin_sign);
+                        timeout += (port_activated_percentage * pwm_one_percent_ticks);
+                        port_is  = activated;
+                    } else {
+                        DEACTIVATE_PORT(port_pin_sign);
+                        timeout += ((100 - port_activated_percentage) * pwm_one_percent_ticks);
+                        port_is  = deactivated;;
+                    }
+                } break;
 
-                if (pwm_context.port_activated_percentage == 100) { // No need to involve any timerafter and get a short off blip
-                    pwm_context.pwm_running = false;
-                    ACTIVATE_PORT(pwm_context.port_pin_sign);
-                } else if (pwm_context.port_activated_percentage == 0) { // No need to involve any timerafter and get a short on blink
-                    pwm_context.pwm_running = false;
-                    DEACTIVATE_PORT(pwm_context.port_pin_sign);
-                } else if (not pwm_context.pwm_running) {
-                    pwm_context.pwm_running = true;
-                    pwm_context.tmr :> pwm_context.timeout; // immediate timeout
-                } else { // pwm_running already
-                    // No code
-                    // Don't disturb running timerafter, just let it use the new port_activated_percentage when it gets there
-                }
-            } break;
+                case if_pwm.set_percentage (const percentage_t percentage) : {
+
+                    port_activated_percentage = percentage;
+
+                    if (port_activated_percentage == 100) { // No need to involve any timerafter and get a short off blip
+                        pwm_running = false;
+                        ACTIVATE_PORT(port_pin_sign);
+                    } else if (port_activated_percentage == 0) { // No need to involve any timerafter and get a short on blink
+                        pwm_running = false;
+                        DEACTIVATE_PORT(port_pin_sign);
+                    } else if (not pwm_running) {
+                        pwm_running = true;
+                        tmr :> timeout; // immediate timeout
+                    } else { // pwm_running already
+                        // No code
+                        // Don't disturb running timerafter, just let it use the new port_activated_percentage when it gets there
+                    }
+                } break;
+            }
         }
     }
-}
+#elif (PWM_FOR_LED_TASK_CONTEXT==1)
+    [[combinable]]
+    void pwm_for_LED_task (
+            server pwm_if       if_pwm,
+            out buffered port:1 outP1)
+    {
+        pwm_context_t pwm_context;
 
+        pwm_context.port_pin_sign = PWM_PORT_PIN_SIGN;
+
+        debug_print ("port_pin_sign %u\n", pwm_context.port_pin_sign);
+
+        pwm_context.pwm_one_percent_ticks     = PWM_ONE_PERCENT_TICS; // 10 uS. So 99% means 990 us activated and 10 us deactivated
+        pwm_context.port_activated_percentage = 100;                  // This implies [1], [2] and [3] below
+        pwm_context.pwm_running               = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
+        pwm_context.port_is                   = activated;            // [2] "LED on"
+                                                                      //
+        ACTIVATE_PORT(pwm_context.port_pin_sign);                     // [3]
+
+        while (1) {
+            select {
+                case (pwm_context.pwm_running) => pwm_context.tmr when timerafter(pwm_context.timeout) :> void: {
+                    if (pwm_context.port_is == deactivated) {
+                        ACTIVATE_PORT(pwm_context.port_pin_sign);
+                        pwm_context.timeout += (pwm_context.port_activated_percentage * pwm_context.pwm_one_percent_ticks);
+                        pwm_context.port_is  = activated;
+                    } else {
+                        DEACTIVATE_PORT(pwm_context.port_pin_sign);
+                        pwm_context.timeout += ((100 - pwm_context.port_activated_percentage) * pwm_context.pwm_one_percent_ticks);
+                        pwm_context.port_is  = deactivated;;
+                    }
+                } break;
+
+                case if_pwm.set_percentage (const percentage_t percentage) : {
+
+                    pwm_context.port_activated_percentage = percentage;
+
+                    if (pwm_context.port_activated_percentage == 100) { // No need to involve any timerafter and get a short off blip
+                        pwm_context.pwm_running = false;
+                        ACTIVATE_PORT(pwm_context.port_pin_sign);
+                    } else if (pwm_context.port_activated_percentage == 0) { // No need to involve any timerafter and get a short on blink
+                        pwm_context.pwm_running = false;
+                        DEACTIVATE_PORT(pwm_context.port_pin_sign);
+                    } else if (not pwm_context.pwm_running) {
+                        pwm_context.pwm_running = true;
+                        pwm_context.tmr :> pwm_context.timeout; // immediate timeout
+                    } else { // pwm_running already
+                        // No code
+                        // Don't disturb running timerafter, just let it use the new port_activated_percentage when it gets there
+                    }
+                } break;
+            }
+        }
+    }
+#endif
+
+// Only used when CONFIG_NUM_TASKS_PER_LED==1
 void set_percentage (
         pwm_context_t       &pwm_context,
         out buffered port:1 outP1,
@@ -217,7 +278,7 @@ void set_percentage (
     }
 }
 
-
+// Only used when CONFIG_NUM_TASKS_PER_LED==1
 [[combinable]]
 void softblinker_pwm_for_LED_task (
         server softblinker_if if_softblinker,
