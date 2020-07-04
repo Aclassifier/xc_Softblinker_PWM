@@ -29,23 +29,23 @@
 #define DEBUG_PRINT_TEST 1
 #define debug_print(fmt, ...) do { if((DEBUG_PRINT_TEST==1) and (DEBUG_PRINT_GLOBAL_APP==1)) printf(fmt, __VA_ARGS__); } while (0)
 
-// For set_one_percent_ms and set_sofblink_percentages
-#define SOFTBLINK_RESTARTED_ONE_PERCENT_MS        1 //  1 ms goes to 100 in 0.1 seconds -> 5 blinks per second
-#define SOFTBLINK_RESTARTED_UNIT_MAX_PERCENTAGE 100
+// For set_LED_period_ms and set_LED_intensity
+#define SOFTBLINK_RESTARTED_PERIOD_MS           200 //   200 ms (max to max or min to min)
 #define SOFTBLINK_RESTARTED_UNIT_MIN_PERCENTAGE   0
+#define SOFTBLINK_RESTARTED_UNIT_MAX_PERCENTAGE 100
 //
-#define SOFTBLINK_DARK_DISPLAY_ONE_PERCENT_MS    30 // 30 ms goes to 100 in 3.0 seconds
-#define SOFTBLINK_DARK_DISPLAY_MAX_PERCENTAGE    40
+#define SOFTBLINK_DARK_DISPLAY_PERIOD_MS       6000 // 6 secs
 #define SOFTBLINK_DARK_DISPLAY_MIN_PERCENTAGE    10
+#define SOFTBLINK_DARK_DISPLAY_MAX_PERCENTAGE    40
 //
-#define SOFTBLINK_LIT_DISPLAY_ONE_PERCENT_MS     10 // 10 ms goes to 100 in 1.0 seconds
-#define SOFTBLINK_LIT_DISPLAY_MAX_PERCENTAGE     80
+#define SOFTBLINK_LIT_DISPLAY_PERIOD_MS        2000 // 2 secs
 #define SOFTBLINK_LIT_DISPLAY_MIN_PERCENTAGE     10
+#define SOFTBLINK_LIT_DISPLAY_MAX_PERCENTAGE     80
 
 #define NUM_TIMEOUTS_PER_SECOND 2
 
 [[combinable]]
-void Softblinker_pwm_button_client_task (
+void softblinker_pwm_button_client_task (
         server button_if      i_buttons_in[BUTTONS_NUM_CLIENTS],
         client softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS])
 {
@@ -53,11 +53,11 @@ void Softblinker_pwm_button_client_task (
     time32_t time_ticks; // Ticks to 100 in 1 us
 
     // STARTUP
-    unsigned const params_onepercent_max_min [CONFIG_NUM_SOFTBLIKER_LEDS][3] = PARAMS_ONEPERCENTMILLIS_MAXPRO_MINPRO;
+    unsigned const params_periodms_minpro_maxpro [CONFIG_NUM_SOFTBLIKER_LEDS][3] = PARAMS_PERIODMS_MINPRO_MAXPRO;
 
     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-        if_softblinker[ix].set_one_percent_ms       (params_onepercent_max_min[ix][0]);
-        if_softblinker[ix].set_sofblink_percentages (params_onepercent_max_min[ix][1], params_onepercent_max_min[ix][2]);
+        if_softblinker[ix].set_LED_period_ms       (params_periodms_minpro_maxpro[ix][0]);
+        if_softblinker[ix].set_LED_intensity_range (params_periodms_minpro_maxpro[ix][1], params_periodms_minpro_maxpro[ix][2]);
     }
 
     while (true) {

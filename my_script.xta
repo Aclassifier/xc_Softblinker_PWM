@@ -1,0 +1,9 @@
+# load "/Users/teig/workspace/_Softblinker_PWM/bin/_Softblinker_PWM.xe"
+#
+
+# analyze endpoints start stop 
+# set required - 1000 us
+
+analyze loop start
+set required - 1.0 us
+

@@ -43,7 +43,7 @@ typedef struct {
 } button_states_t;
 
 [[combinable]]
-void Button_Task (
+void button_task (
         const unsigned     button_n,
         in buffered port:1 p_button,
         client button_if   i_button_out);

@@ -8,19 +8,18 @@
 #ifndef PWM_SOFTBLINKER_H_
     #define PWM_SOFTBLINKER_H_
 
-
     typedef unsigned percentage_t; // [0..100]
     typedef enum {scan_none, scan_continuous} scan_type_e;
     typedef enum {active_high, active_low} port_pin_sign_e;
 
     typedef interface softblinker_if {              //  FULLY
-        void set_sofblink_percentages (             // ON  OFF (oppostie if port_pin_sign_e set opposite)
-                const percentage_t max_percentage,  // 100   0
-                const percentage_t min_percentage); // 100   0
-        void set_one_percent_ms (const unsigned ms);
+        void set_LED_intensity_range (               // ON  OFF (opposite if port_pin_sign_e set opposite)
+                const percentage_t min_percentage,  // 100   0
+                const percentage_t man_percentage); // 100   0
+        void set_LED_period_ms (const unsigned period_ms); // between two max or two min
     } softblinker_if;
 
-    #define SOFTBLINK_DEFAULT_ONE_PERCENT_MS 30 // 30 ms goes to 100 in 3.0 seconds, when this is the timing:
+    #define SOFTBLINK_DEFAULT_PERIOD_MS 30 // 30 ms goes to 100 in 3.0 seconds, when this is the timing:
 
     #define PWM_ONE_PERCENT_TICS \
        (100 * XS1_TIMER_MHZ)
@@ -45,7 +44,7 @@
                                          // active_high/0 and 100,100 = LED OFF
 
     typedef interface pwm_if {
-        void set_percentage (const percentage_t percentage);
+        void set_LED_intensity (const percentage_t percentage);
     } pwm_if;
 
     // Only used when CONFIG_NUM_TASKS_PER_LED==2

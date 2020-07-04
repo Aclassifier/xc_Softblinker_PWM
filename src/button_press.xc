@@ -26,7 +26,7 @@
 #define DEBOUNCE_TIMEOUT_50_MS 50
 
 [[combinable]]
-void Button_Task (
+void button_task (
         const unsigned     button_n,
         in buffered port:1 p_button,
         client button_if   i_button_out // See http://www.teigfam.net/oyvind/home/technology/141-xc-is-c-plus-x/#the_combined_code_6_to_zero_channels
@@ -43,7 +43,7 @@ void Button_Task (
     bool initial_released_stopped = false; // Since it would do BUTTON_ACTION_RELEASED always after start
     bool pressed_but_not_released = false;
 
-    debug_print("inP_Button_Task[%u] started\n", button_n);
+    debug_print("inP_button_task[%u] started\n", button_n);
 
     while(1) {
         select {
