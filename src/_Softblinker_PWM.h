@@ -9,6 +9,8 @@
 #ifndef SOFTBLINKER_PWM_H_
     //
     #define CONFIG_NUM_SOFTBLIKER_LEDS 2 // 2 2 2 2 2 2 2 1 1 2 (1=yellow_LED, 2+=red_LED)
+    #define IOF_YELLOW_LED             0
+    #define IOF_RED_LED                1
     #define CONFIG_NUM_TASKS_PER_LED   2 // 2 2 2 2 1 1 1 1 2 2
     #define CONFIG_PAR_ON_CORES        3 // 1 2 3 4 2 3 4 3 3 5                  8-cores  10-timers 32-chanends
                                          // #                   221: Constraints: C:  3    T:  3     C:  3      M:8432  S:1220  C:6368  D:844  (tile[0])
@@ -22,10 +24,13 @@
                                          //                 #   123: Constraints: C:  3    T:  3     C:    4    M:6636  S:888   C:4956  D:792  (tile[0])
                                          //                   # 225: Constraints: C:    5  T:    5   C:       7 M:7120  S:1124  C:5140  D:856  (tile[0])
 
+    // First param minimum is SOFTBLINK_PERIOD_MIN_MS
     #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-        #define PARAMS_PERIODMS_MINPRO_MAXPRO {{8000,10,80}}
+        #define PARAMS_PERIODMS_MINPRO_MAXPRO {{8000,10,80}}             // period_ms, min_percentage, max_percentage
     #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-        #define PARAMS_PERIODMS_MINPRO_MAXPRO {{8000,10,80},{6000,0,100}}
+        #define PARAMS_PERIODMS_MINPRO_MAXPRO {{1000,0,100},{6000,0,100}} // period_ms, min_percentage, max_percentage times CONFIG_NUM_SOFTBLIKER_LEDS
+        //                                      200                       // 5 blinks per second
+        //                                          0,15                     0,10 not visible when light room, 0,15 barely visible, 0,20 quite visible
     #endif
 
     [[combinable]]

@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.0.8"
-#define AUDIOMUX_VERSION_NUM   0008
-//
+#define AUDIOMUX_VERSION_STR "0.1.0"
+#define AUDIOMUX_VERSION_NUM   0010
+// 0010 09Jul2020          Buttons are handled
+//                         warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
 // 0008 04Jul2020          Changed some names. These are much more descriptive: set_LED_intensity_range, set_LED_period_ms and set_LED_intensity
 // 0007 02Jul2020          First release at https://www.teigfam.net/oyvind/blog_notes/209/code/_softblinker_pwm.zip.
 // 0006 01Jul2020          Only using in pwm_context_t and softblinker_context_t in softblinker_pwm_for_LED_task. Better readability

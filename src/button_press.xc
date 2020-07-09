@@ -22,15 +22,15 @@
 #define DEBUG_PRINT_BUTTON_PRESS 0
 #define debug_print(fmt, ...) do { if((DEBUG_PRINT_BUTTON_PRESS==1) and (DEBUG_PRINT_GLOBAL_APP==1)) printf(fmt, __VA_ARGS__); } while (0)
 
-
 #define DEBOUNCE_TIMEOUT_50_MS 50
+#define BUTTON_PRESSED          0 // If pullup resistor
+#define BUTTON_RELEASED         1 // If pullup resistor
 
 [[combinable]]
 void button_task (
         const unsigned     button_n,
         in buffered port:1 p_button,
-        client button_if   i_button_out // See http://www.teigfam.net/oyvind/home/technology/141-xc-is-c-plus-x/#the_combined_code_6_to_zero_channels
-        )
+        client button_if   if_button_out) // See http://www.teigfam.net/oyvind/home/technology/141-xc-is-c-plus-x/#the_combined_code_6_to_zero_channels
 {
     // From XMOS-Programming-Guide.
     int      current_val = BUTTON_PRESSED;
@@ -72,7 +72,7 @@ void button_task (
                         initial_released_stopped = true; // Not if BUTTON_ACTION_PRESSED was sent first
                         pressed_but_not_released = true; // ONLY PLACE IT'S SET
 
-                        i_button_out.button (BUTTON_ACTION_PRESSED); // Button down
+                        if_button_out.button (BUTTON_ACTION_PRESSED); // Button down
                         debug_print(" BUTTON_ACTION_PRESSED %u sent\n", button_n);
                         tmr :> current_time;
                         timeout = current_time + (BUTTON_ACTION_PRESSED_FOR_LONG_TIMEOUT_MS * XS1_TIMER_KHZ);
@@ -82,7 +82,7 @@ void button_task (
                             debug_print(" Button %u filtered away\n", button_n);
                         } else {
                             pressed_but_not_released = false;
-                            i_button_out.button (BUTTON_ACTION_RELEASED);
+                            if_button_out.button (BUTTON_ACTION_RELEASED);
                             debug_print(" BUTTON_ACTION_RELEASED %u sent\n", button_n);
                         }
                     }
@@ -92,7 +92,7 @@ void button_task (
                     // xTIMEcomposer 14.3.0 does 880997 times in 30 seconds with DEBUG_PRINT_BUTTON_PRESS==0, yields about 30000 per second probably livelocked (but printed in receiver)
                     pressed_but_not_released = false;
                     initial_released_stopped = false; // To avoid BUTTON_ACTION_RELEASED when it's released (RFM69=003)
-                    i_button_out.button (BUTTON_ACTION_PRESSED_FOR_LONG);
+                    if_button_out.button (BUTTON_ACTION_PRESSED_FOR_LONG);
                     debug_print(" BUTTON_ACTION_PRESSED_FOR_LONG %u sent\n", button_n);
                 }
             } break;

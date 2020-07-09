@@ -40,7 +40,7 @@
     out buffered port:1 outP1_d4_led      = on tile[0]: XS1_PORT_1F; // xCORE XA J1 D13 XCORE-XA-MODULE LED D4 (LOW IS ON)
     //
     in  buffered port:1 inP_button_left   = on tile[0]: XS1_PORT_1K; // External xCORE XA J9 P34. XCORE-XA-MODULE EXTERNAL BUTTON1
-    in  buffered port:1 in  P_button_center = on tile[0]: XS1_PORT_1O; // External xCORE XA J9 P38. XCORE-XA-MODULE EXTERNAL BUTTON2
+    in  buffered port:1 inP_button_center = on tile[0]: XS1_PORT_1O; // External xCORE XA J9 P38. XCORE-XA-MODULE EXTERNAL BUTTON2
     in  buffered port:1 inP_button_right  = on tile[0]: XS1_PORT_1P; // External xCORE XA J9 P39. XCORE-XA-MODULE EXTERNAL BUTTON3
 
     #define red_LED outP1_d4_led
@@ -62,12 +62,13 @@
 
     #define BOARD_LED_MASK_MAX BOARD_LED_MASK_MAX_4 // _1, _2, _3 or _4
 
-    in buffered port:1 inP_button_left   = on tile[0]: XS1_PORT_1M; // External GPIO-PIN63 With pull-up of 9.1k
-    in buffered port:1 inP_button_center = on tile[0]: XS1_PORT_1N; // External GPIO-PIN61 With pull-up of 9.1k
-    in buffered port:1 inP_button_right  = on tile[0]: XS1_PORT_1O; // External GPIO-PIN59 With pull-up of 9.1k
+    // Open button 3V3 pull-up with 10k, pushed button takes that line via 1k to GND
+    in buffered port:1 inP_button_left   = on tile[0]: XS1_PORT_1M; // External GPIO-J1.PIN63 (B1)
+    in buffered port:1 inP_button_center = on tile[0]: XS1_PORT_1N; // External GPIO-J1.PIN61 (B3)
+    in buffered port:1 inP_button_right  = on tile[0]: XS1_PORT_1O; // External GPIO-J1.PIN59 (B2)
 
-    out buffered port:1 outP1_external_red_led    = on tile[0]: XS1_PORT_1F; // External GPIO-PIN37 LED 470R to 3V3. LOW IS ON
-    out buffered port:1 outP1_external_yellow_led = on tile[0]: XS1_PORT_1E; // External GPIO-PIN39 LED 470R to 3V3. LOW IS ON
+    out buffered port:1 outP1_external_red_led    = on tile[0]: XS1_PORT_1F; // External GPIO-J1.PIN37 LED 470R to 3V3. LOW IS ON
+    out buffered port:1 outP1_external_yellow_led = on tile[0]: XS1_PORT_1E; // External GPIO-J1.PIN39 LED 470R to 3V3. LOW IS ON
 
     #define red_LED    outP1_external_red_led
     #define yellow_LED outP1_external_yellow_led
@@ -92,10 +93,10 @@
                         button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
 
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-                            softblinker_pwm_for_LED_task (if_softblinker[0], yellow_LED);
+                            softblinker_pwm_for_LED_task (if_softblinker[IO_YELLOW_LED], yellow_LED);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-                            softblinker_pwm_for_LED_task (if_softblinker[0], yellow_LED);
-                            softblinker_pwm_for_LED_task (if_softblinker[1], red_LED);
+                            softblinker_pwm_for_LED_task (if_softblinker[IO_YELLOW_LED], yellow_LED);
+                            softblinker_pwm_for_LED_task (if_softblinker[IOF_RED_LED], red_LED);
                         #endif
                     }
                 }
@@ -115,19 +116,19 @@
                 #elif (CONFIG_PAR_ON_CORES==2)
                     par { // replicated par not possible since neither port nor on tile or on port may be indexed
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-                            on tile[0].core[6]: softblinker_pwm_for_LED_task (if_softblinker[0], yellow_LED);
+                            on tile[0].core[6]: softblinker_pwm_for_LED_task (if_softblinker[IO_YELLOW_LED], yellow_LED);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-                            on tile[0].core[6]: softblinker_pwm_for_LED_task (if_softblinker[0], yellow_LED);
-                            on tile[0].core[6]: softblinker_pwm_for_LED_task (if_softblinker[1], red_LED);
+                            on tile[0].core[6]: softblinker_pwm_for_LED_task (if_softblinker[IO_YELLOW_LED], yellow_LED);
+                            on tile[0].core[6]: softblinker_pwm_for_LED_task (if_softblinker[IOF_RED_LED], red_LED);
                         #endif
                     }
                 #elif (CONFIG_PAR_ON_CORES==3)
                     par { // replicated par not possible since neither port nor on tile or on port may be indexed
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-                            on tile[0]: softblinker_pwm_for_LED_task (if_softblinker[0], yellow_LED);
+                            on tile[0]: softblinker_pwm_for_LED_task (if_softblinker[IO_YELLOW_LED], yellow_LED);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-                            on tile[0]: softblinker_pwm_for_LED_task (if_softblinker[0], yellow_LED);
-                            on tile[0]: softblinker_pwm_for_LED_task (if_softblinker[1], red_LED);
+                            on tile[0]: softblinker_pwm_for_LED_task (if_softblinker[IO_YELLOW_LED], yellow_LED);
+                            on tile[0]: softblinker_pwm_for_LED_task (if_softblinker[IOF_RED_LED], red_LED);
                         #endif
                     }
                 #elif (CONFIG_PAR_ON_CORES==5)
@@ -159,13 +160,13 @@
                 }
                 par { // Not [[combine]]
                     #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-                        on tile[0].core[4]: pwm_for_LED_task (if_pwm[0], yellow_LED);
-                        on tile[0].core[5]: softblinker_task (if_pwm[0], if_softblinker[0]);
+                        on tile[0].core[4]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                        on tile[0].core[5]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
                     #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-                        on tile[0].core[4]: pwm_for_LED_task (if_pwm[0], yellow_LED);
-                        on tile[0].core[5]: softblinker_task (if_pwm[0], if_softblinker[0]);
-                        on tile[0].core[6]: pwm_for_LED_task (if_pwm[1], red_LED);
-                        on tile[0].core[7]: softblinker_task (if_pwm[1], if_softblinker[1]);
+                        on tile[0].core[4]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                        on tile[0].core[5]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
+                        on tile[0].core[6]: pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED], red_LED);
+                        on tile[0].core[7]: softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED], if_softblinker[IOF_RED_LED]);
                     #endif
                 }
             #elif (CONFIG_PAR_ON_CORES==4)
@@ -178,13 +179,13 @@
                         button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]); // [[combinable]]
                         button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-                            pwm_for_LED_task (if_pwm[0], yellow_LED);
-                            softblinker_task (if_pwm[0], if_softblinker[0]);
+                            pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                            softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-                            pwm_for_LED_task (if_pwm[0], yellow_LED);
-                            softblinker_task (if_pwm[0], if_softblinker[0]);
-                            pwm_for_LED_task (if_pwm[1], red_LED);
-                            softblinker_task (if_pwm[1], if_softblinker[1]);
+                            pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                            softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
+                            pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    red_LED);
+                            softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED]);
                         #endif
                     }
                 }
@@ -202,37 +203,37 @@
                 #if (CONFIG_PAR_ON_CORES==1)
                     par { // replicated par not possible since neither port nor on tile or on port may be indexed
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-                            on tile[0].core[6]: pwm_for_LED_task (if_pwm[0], yellow_LED);
-                            on tile[0].core[6]: softblinker_task (if_pwm[0], if_softblinker[0]);
+                            on tile[0].core[6]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                            on tile[0].core[6]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-                            on tile[0].core[6]: pwm_for_LED_task (if_pwm[0], yellow_LED);
-                            on tile[0].core[6]: softblinker_task (if_pwm[0], if_softblinker[0]);
-                            on tile[0].core[7]: pwm_for_LED_task (if_pwm[1], red_LED);
-                            on tile[0].core[7]: softblinker_task (if_pwm[1], if_softblinker[1]);
+                            on tile[0].core[6]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                            on tile[0].core[6]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
+                            on tile[0].core[7]: pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    red_LED);
+                            on tile[0].core[7]: softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED]);
                         #endif
                     }
                 #elif (CONFIG_PAR_ON_CORES==2)
                     par { // replicated par not possible since neither port nor on tile or on port may be indexed
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-                            on tile[0].core[6]: pwm_for_LED_task (if_pwm[0], yellow_LED);
-                            on tile[0].core[6]: softblinker_task (if_pwm[0], if_softblinker[0]);
+                            on tile[0].core[6]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                            on tile[0].core[6]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-                            on tile[0].core[6]: pwm_for_LED_task (if_pwm[0], yellow_LED);
-                            on tile[0].core[6]: softblinker_task (if_pwm[0], if_softblinker[0]);
-                            on tile[0].core[6]: pwm_for_LED_task (if_pwm[1], red_LED);
-                            on tile[0].core[6]: softblinker_task (if_pwm[1], if_softblinker[1]);
+                            on tile[0].core[6]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                            on tile[0].core[6]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
+                            on tile[0].core[6]: pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    red_LED);
+                            on tile[0].core[6]: softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED]);
                         #endif
                     }
                 #elif (CONFIG_PAR_ON_CORES==3) // Almost the same as CONFIG_PAR_ON_CORES==5, but this is implicit
                     par { // replicated par not possible since neither port nor on tile or on port may be indexed
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-                            on tile[0]: pwm_for_LED_task (if_pwm[0], yellow_LED);
-                            on tile[0]: softblinker_task (if_pwm[0], if_softblinker[0]);
+                            on tile[0]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                            on tile[0]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-                            on tile[0]: pwm_for_LED_task (if_pwm[0], yellow_LED);
-                            on tile[0]: softblinker_task (if_pwm[0], if_softblinker[0]);
-                            on tile[0]: pwm_for_LED_task (if_pwm[1], red_LED);
-                            on tile[0]: softblinker_task (if_pwm[1], if_softblinker[1]);
+                            on tile[0]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                            on tile[0]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
+                            on tile[0]: pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    red_LED);
+                            on tile[0]: softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED]);
                         #endif
                     }
                 #endif

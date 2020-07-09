@@ -8,9 +8,6 @@
 #ifndef BUTTON_PRESS_H_
 #define BUTTON_PRESS_H_
 
-#define BUTTON_PRESSED  0 // If pullup resistor
-#define BUTTON_RELEASED 1 // If pullup resistor
-
 typedef enum {
     BUTTON_ACTION_VOID,
     BUTTON_ACTION_PRESSED,
@@ -46,7 +43,7 @@ typedef struct {
 void button_task (
         const unsigned     button_n,
         in buffered port:1 p_button,
-        client button_if   i_button_out);
+        client button_if   if_button_out);
 
 #else
     #error Nested include BUTTON_PRESS_H_

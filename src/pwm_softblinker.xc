@@ -29,14 +29,15 @@
 #define DEBUG_PRINT_TEST 0
 #define debug_print(fmt, ...) do { if((DEBUG_PRINT_TEST==1) and (DEBUG_PRINT_GLOBAL_APP==1)) printf(fmt, __VA_ARGS__); } while (0)
 
-#define MS_PER_PERCENT_TO_PERIOD_MS_FACTOR (100 * 2) // 100 percent is min to max or max to min, times 2 to get a period = min to min or max to max
-
 // Only used when CONFIG_NUM_TASKS_PER_LED==2
 [[combinable]]
 void softblinker_task (
+        const unsigned        id_task, // For printing only
         client pwm_if         if_pwm,
         server softblinker_if if_softblinker)
 {
+    debug_print ("%u softblinker_task started\n", id_task);
+
     // --- softblinker_context_t for softblinker_pwm_for_LED_task
     timer        tmr;
     time32_t     timeout;
@@ -79,15 +80,18 @@ void softblinker_task (
             } break;
 
             case if_softblinker.set_LED_intensity_range (const percentage_t min_percentage_, const percentage_t max_percentage_): {
-                debug_print ("set_LED_intensity %u %u\n", min_percentage_, max_percentage_);
 
-                // Conflict with jumping above or below present range resolved with in_range_signed_min_max_set in timerafter
+                min_percentage = (percentage_t) in_range_signed ((signed) min_percentage_, SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MAX_PERCENTAGE);
+                max_percentage = (percentage_t) in_range_signed ((signed) max_percentage_, SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MAX_PERCENTAGE);
+                //
+                //     min_percentage   0 here and min_percentage may be decremented to  -1 in timerafter (*)
+                //     max_percentage 100 here and max_percentage may be incremented to 101 in timerafter (*)
+                // (*) Conflict with jumping above or below present range resolved with in_range_signed_min_max_set in timerafter
 
-                                                                 // Also overflow/underflow problems solved there:
-                min_percentage = (percentage_t) min_percentage_; //   0 here and min_percentage may be decremented to  -1 in timerafter
-                max_percentage = (percentage_t) max_percentage_; // 100 here and max_percentage may be incrmeneted to 101 in timerafter
+                // Printing disturbs 1ms update messages above, so will appear to "blink"
+                debug_print ("%u set_LED_intensity %u %u\n", id_task, min_percentage, max_percentage);
 
-                if (max_percentage == min_percentage) {
+                if (max_percentage == min_percentage) { // No change of intensity
                     pwm_running = false;
                     if_pwm.set_LED_intensity (max_percentage);
                 } else if (not pwm_running) {
@@ -99,10 +103,21 @@ void softblinker_task (
                 }
             } break;
 
-            case if_softblinker.set_LED_period_ms (const unsigned period_ms): {
-                debug_print ("set_LED_period_ms %u\n", period_ms/MS_PER_PERCENT_TO_PERIOD_MS_FACTOR);
+            case if_softblinker.set_LED_period_ms (const unsigned period_ms_, const bool start_at_dark): {
 
-                pwm_one_percent_ticks = ((period_ms/MS_PER_PERCENT_TO_PERIOD_MS_FACTOR) * XS1_TIMER_KHZ);
+                unsigned period_ms = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
+
+                // Printing disturbs 1ms update messages above, so will appear to "blink"
+                debug_print ("%u set_LED_period_ms %u\n", id_task, period_ms);
+
+                unsigned pwm_one_percent_ticks_ = ((period_ms/SOFTBLINK_PERIOD_MIN_MS) * XS1_TIMER_KHZ);
+
+                if (start_at_dark) {
+                    now_percentage = SOFTBLINK_DEFAULT_MIN_PERCENTAGE; // Will "synchronize" all LEDs to start with dark
+                } else {}
+
+                pwm_one_percent_ticks = pwm_one_percent_ticks_;
+
             } break;
         }
     }
@@ -129,6 +144,7 @@ typedef enum {activated, deactivated} port_is_e;
 
 [[combinable]]
 void pwm_for_LED_task (
+        const unsigned      id_task, // For printing only
         server pwm_if       if_pwm,
         out buffered port:1 outP1)
 {
@@ -144,7 +160,7 @@ void pwm_for_LED_task (
 
     port_pin_sign = PWM_PORT_PIN_SIGN;
 
-    debug_print ("port_pin_sign %u\n", port_pin_sign);
+    debug_print ("%u pwm_for_LED_task started\n", id_task);
 
     pwm_one_percent_ticks     = PWM_ONE_PERCENT_TICS;
     port_activated_percentage = 100;                  // This implies [1], [2] and [3] below
@@ -239,9 +255,11 @@ void set_LED_intensity (
 // Only used when CONFIG_NUM_TASKS_PER_LED==1
 [[combinable]]
 void softblinker_pwm_for_LED_task (
+        const unsigned        id_task, // For printing only
         server softblinker_if if_softblinker,
         out buffered port:1   outP1)
 {
+    debug_print ("%u softblinker_pwm_for_LED_task started\n", id_task);
 
     pwm_context_t         pwm_context;
     softblinker_context_t softblinker_context;
@@ -298,15 +316,14 @@ void softblinker_pwm_for_LED_task (
             } break;
 
             case if_softblinker.set_LED_intensity_range (const percentage_t min_percentage_, const percentage_t max_percentage_): {
-                debug_print ("set_LED_intensity %u %u\n", min_percentage_, max_percentage_);
 
-                // Conflict with jumping above or below present range resolved with in_range_signed_min_max_set in timerafter
+                // Printing disturbs 1ms update messages above, so will appear to "blink"
+                debug_print ("%u set_LED_intensity %u %u\n", id_task, min_percentage_, max_percentage_);
 
-                                                                                     // Also overflow/underflow problems solved there:
-                softblinker_context.min_percentage = (percentage_t) min_percentage_; //   0 here and min_percentage may be decremented to  -1 in timerafter
-                softblinker_context.max_percentage = (percentage_t) max_percentage_; // 100 here and max_percentage may be incrmeneted to 101 in timerafter
+                softblinker_context.min_percentage = (percentage_t) in_range_signed ((signed) min_percentage_, SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MAX_PERCENTAGE);
+                softblinker_context.max_percentage = (percentage_t) in_range_signed ((signed) max_percentage_, SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MAX_PERCENTAGE);
 
-                if (softblinker_context.max_percentage == softblinker_context.min_percentage) {
+                if (softblinker_context.max_percentage == softblinker_context.min_percentage) { // No change of intensity
                     softblinker_context.pwm_running = false;
                     set_LED_intensity (pwm_context, outP1, softblinker_context.max_percentage);
                     // No code, timerafter will do it
@@ -319,10 +336,20 @@ void softblinker_pwm_for_LED_task (
                 }
             } break;
 
-            case if_softblinker.set_LED_period_ms (const unsigned period_ms): {
-                debug_print ("set_LED_period_ms %u\n", period_ms/MS_PER_PERCENT_TO_PERIOD_MS_FACTOR);
+            case if_softblinker.set_LED_period_ms (const unsigned period_ms_, const bool start_at_dark): {
 
-                softblinker_context.pwm_one_percent_ticks = ((period_ms/MS_PER_PERCENT_TO_PERIOD_MS_FACTOR) * XS1_TIMER_KHZ);
+                unsigned period_ms = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
+
+                // Printing disturbs 1ms update messages above, so will appear to "blink"
+                debug_print ("%u set_LED_period_ms %u\n", id_task, period_ms);
+
+                unsigned pwm_one_percent_ticks_ = ((period_ms/SOFTBLINK_PERIOD_MIN_MS) * XS1_TIMER_KHZ);
+
+                if (start_at_dark) {
+                    softblinker_context.now_percentage = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
+                } else {}
+
+                softblinker_context.pwm_one_percent_ticks = pwm_one_percent_ticks_;
             } break;
         }
     }

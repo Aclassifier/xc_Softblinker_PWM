@@ -12,17 +12,13 @@
     typedef enum {scan_none, scan_continuous} scan_type_e;
     typedef enum {active_high, active_low} port_pin_sign_e;
 
-    typedef interface softblinker_if {              //  FULLY
-        void set_LED_intensity_range (               // ON  OFF (opposite if port_pin_sign_e set opposite)
-                const percentage_t min_percentage,  // 100   0
-                const percentage_t man_percentage); // 100   0
-        void set_LED_period_ms (const unsigned period_ms); // between two max or two min
-    } softblinker_if;
-
-    #define SOFTBLINK_DEFAULT_PERIOD_MS 30 // 30 ms goes to 100 in 3.0 seconds, when this is the timing:
+    #define PERCENTAGE_US          1000                            // 1000
+    #define PERCENTAGE_MS          (PERCENTAGE_US          / 1000) //    1
+    #define PERCENTAGE_0_TO_100_MS (PERCENTAGE_MS          *  100) //  100
+    #define PERIOD_MS              (PERCENTAGE_0_TO_100_MS *   2)  //  200 A period is * 2
 
     #define PWM_ONE_PERCENT_TICS \
-       (100 * XS1_TIMER_MHZ)
+       (100 * XS1_TIMER_MHZ)        // 100 us 1% on is a pulse of 100 us every 10 ms 100 Hz
     // ####
     // #### AMUX=002 analysis:
     // #### Observe that the number of timeouts ....... _DOES_ .. depend on this value (but the XCORE is "made for" this)
@@ -34,8 +30,25 @@
     //   10 us 1% on is a pulse of  10 us every  1 ms    1 kHz works fine, no blinking,                               perfect softblink
     //   10 us I scoped this
 
-    #define SOFTBLINK_DEFAULT_MAX_PERCENTAGE 100
+    #define SOFTBLINK_PERIOD_MIN_MS (PERIOD_MS) // 200 ms = 5 blinks per second (100% up and 100% down in 1ms resolution)
+    #define SOFTBLINK_PERIOD_MAX_MS  10000      // 10 seconds, not related to anything else than _MS
+
+    typedef interface softblinker_if {
+        //  FULLY
+        void set_LED_intensity_range (                     // ON  OFF (opposite if port_pin_sign_e set opposite)
+                const percentage_t min_percentage,         // 100   0     [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
+                const percentage_t max_percentage);        // 100   0     [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
+
+        void set_LED_period_ms (
+                const unsigned period_ms, // [SOFTBLINK_PERIOD_MIN_MS..SOFTBLINK_PERIOD_MAX_MS] between two max or two min
+                const bool     start_at_dark);
+
+    } softblinker_if;
+
+    #define SOFTBLINK_DEFAULT_PERIOD_MS 30 // 30 ms goes to 100 in 3.0 seconds, when this is the timing:
+
     #define SOFTBLINK_DEFAULT_MIN_PERCENTAGE   0
+    #define SOFTBLINK_DEFAULT_MAX_PERCENTAGE 100
 
     // XMOS not raised TICKET (as of 23Jun2020): No matter how much I tweeaked the code, if this was set as
     // a parameter into any of the tasks in pwm_softblinker, I had to touch that file to have it recompiled
@@ -44,24 +57,27 @@
                                          // active_high/0 and 100,100 = LED OFF
 
     typedef interface pwm_if {
-        void set_LED_intensity (const percentage_t percentage);
+        void set_LED_intensity (const percentage_t percentage); // [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
     } pwm_if;
 
     // Only used when CONFIG_NUM_TASKS_PER_LED==2
     [[combinable]]
     void softblinker_task (
+            const unsigned        id_task, // For printing only
             client pwm_if         if_pwm,
             server softblinker_if if_softblinker);
 
     // Only used when CONFIG_NUM_TASKS_PER_LED==2
     [[combinable]]
     void pwm_for_LED_task (
+            const unsigned      id_task, // For printing only
             server pwm_if       if_pwm,
             out buffered port:1 outP1);
 
     // Only used when CONFIG_NUM_TASKS_PER_LED==1
     [[combinable]]
     void softblinker_pwm_for_LED_task (
+            const unsigned        id_task, // For printing only
             server softblinker_if if_softblinker,
             out buffered port:1   outP1);
 
