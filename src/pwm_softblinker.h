@@ -8,9 +8,11 @@
 #ifndef PWM_SOFTBLINKER_H_
     #define PWM_SOFTBLINKER_H_
 
-    typedef unsigned percentage_t; // [0..100]
+    typedef unsigned                          percentage_t; // [0..100]
     typedef enum {scan_none, scan_continuous} scan_type_e;
-    typedef enum {active_high, active_low} port_pin_sign_e;
+    typedef enum {active_high, active_low}    port_pin_sign_e;
+
+    typedef enum {cont, dark, full} LED_start_at_e;
 
     #define PERCENTAGE_US          1000                            // 1000
     #define PERCENTAGE_MS          (PERCENTAGE_US          / 1000) //    1
@@ -40,8 +42,8 @@
                 const percentage_t max_percentage);        // 100   0     [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
 
         void set_LED_period_ms (
-                const unsigned period_ms, // [SOFTBLINK_PERIOD_MIN_MS..SOFTBLINK_PERIOD_MAX_MS] between two max or two min
-                const bool     start_at_dark);
+                const unsigned       period_ms, // [SOFTBLINK_PERIOD_MIN_MS..SOFTBLINK_PERIOD_MAX_MS] between two max or two min
+                const LED_start_at_e LED_start_at);
 
     } softblinker_if;
 

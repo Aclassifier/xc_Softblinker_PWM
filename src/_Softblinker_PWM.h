@@ -24,6 +24,9 @@
                                          //                 #   123: Constraints: C:  3    T:  3     C:    4    M:6636  S:888   C:4956  D:792  (tile[0])
                                          //                   # 225: Constraints: C:    5  T:    5   C:       7 M:7120  S:1124  C:5140  D:856  (tile[0])
 
+    #define LED_START_DARK_FULL {dark, full} // of LED_start_at_e with CONFIG_NUM_SOFTBLIKER_LEDS elements
+    #define LED_START_DARK_DARK {dark, dark} // --"--
+
     // First param minimum is SOFTBLINK_PERIOD_MIN_MS
     #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
         #define PARAMS_PERIODMS_MINPRO_MAXPRO {{8000,10,80}}             // period_ms, min_percentage, max_percentage

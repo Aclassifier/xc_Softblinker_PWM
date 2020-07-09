@@ -38,9 +38,6 @@ typedef struct params_t {
     percentage_t max_percentage;
 } params_t;
 
-typedef struct softblinker_pwm_button_client_task_t {
-    params_t params [CONFIG_NUM_SOFTBLIKER_LEDS];
-} softblinker_pwm_button_client_task_t;
 
 [[combinable]]
 void softblinker_pwm_button_client_task (
@@ -50,25 +47,28 @@ void softblinker_pwm_button_client_task (
     timer                                tmr;
     time32_t                             time_ticks; // Ticks to 100 in 1 us
     button_action_t                      buttons_action [BUTTONS_NUM_CLIENTS];
-    bool                                 start_at_dark  [BUTTONS_NUM_CLIENTS];
-    softblinker_pwm_button_client_task_t context;
+    params_t                             params         [CONFIG_NUM_SOFTBLIKER_LEDS];
+    LED_start_at_e                       LED_start_at   [CONFIG_NUM_SOFTBLIKER_LEDS];
+    bool                                 toggle_LED_phase = false;
 
     for (unsigned ix = 0; ix < BUTTONS_NUM_CLIENTS; ix++) {
         buttons_action[ix] = BUTTON_ACTION_VOID;
-        start_at_dark[ix] = false;
     }
 
     {
-        params_t const params [CONFIG_NUM_SOFTBLIKER_LEDS] = PARAMS_PERIODMS_MINPRO_MAXPRO; // {{200,0,100},{6000,0,100}}
+        params_t const params_now [CONFIG_NUM_SOFTBLIKER_LEDS] = PARAMS_PERIODMS_MINPRO_MAXPRO; // {{200,0,100},{6000,0,100}}
 
         for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
             // Set them
-            context.params[ix].period_ms      = params[ix].period_ms;
-            context.params[ix].min_percentage = params[ix].min_percentage;
-            context.params[ix].max_percentage = params[ix].max_percentage;
+            params[ix].period_ms      = params_now[ix].period_ms;
+            params[ix].min_percentage = params_now[ix].min_percentage;
+            params[ix].max_percentage = params_now[ix].max_percentage;
+            LED_start_at[ix]          = dark;
             // And use them
-            if_softblinker[ix].set_LED_period_ms       (context.params[ix].period_ms, start_at_dark[ix]);
-            if_softblinker[ix].set_LED_intensity_range (context.params[ix].min_percentage, context.params[ix].max_percentage);
+            if_softblinker[ix].set_LED_period_ms       (params[ix].period_ms, LED_start_at[ix]);
+            if_softblinker[ix].set_LED_intensity_range (params[ix].min_percentage, params[ix].max_percentage);
+            // Back to normal
+            LED_start_at[ix] = cont;
         }
     }
 
@@ -105,18 +105,30 @@ void softblinker_pwm_button_client_task (
                                iof_LED = IOF_YELLOW_LED;
                                if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
                                    // No code, see below
-                               } else if (context.params[iof_LED].period_ms < 1000) {
-                                   context.params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
+                               } else if (params[iof_LED].period_ms < 1000) {
+                                   params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
                                } else {
-                                   context.params[iof_LED].period_ms += 2000;
+                                   params[iof_LED].period_ms += 2000;
                                }
                                button_taken = true;
                            } break;
 
                            case IOF_BUTTON_CENTER: {
+                               if (toggle_LED_phase) {
+                                   const LED_start_at_e LED_start_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_FULL; // This and..
+                                   for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                       LED_start_at[ix] = LED_start_at_now[ix];
+                                   }
+                               } else {
+                                   const LED_start_at_e LED_start_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_DARK; // .. this are "180 degrees" out of phase
+                                   for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                       LED_start_at[ix] = LED_start_at_now[ix];
+                                   }
+                               }
+                               toggle_LED_phase = not toggle_LED_phase;
+
                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
                                    if_softblinker[ix].set_LED_intensity_range (SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MIN_PERCENTAGE); // OFF!
-                                   start_at_dark[ix] = true;
                                }
                            } break;
 
@@ -124,10 +136,10 @@ void softblinker_pwm_button_client_task (
                                iof_LED = IOF_RED_LED;
                                if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
                                    // No code, see below
-                               } else if (context.params[iof_LED].period_ms < 1000) {
-                                   context.params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
+                               } else if (params[iof_LED].period_ms < 1000) {
+                                   params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
                                } else {
-                                   context.params[iof_LED].period_ms += 2000;
+                                   params[iof_LED].period_ms += 2000;
                                }
                                button_taken = true;
                            } break;
@@ -139,32 +151,33 @@ void softblinker_pwm_button_client_task (
                            bool min_set;
                            bool max_set;
 
-                           {context.params[iof_LED].period_ms, min_set, max_set} =
+                           {params[iof_LED].period_ms, min_set, max_set} =
                                    in_range_signed_min_max_set (
-                                           context.params[iof_LED].period_ms,
+                                           params[iof_LED].period_ms,
                                            SOFTBLINK_PERIOD_MIN_MS,
                                            SOFTBLINK_PERIOD_MAX_MS);
                            if (min_set) {
-                               context.params[iof_LED].period_ms = SOFTBLINK_PERIOD_MAX_MS; // wrap
+                               params[iof_LED].period_ms = SOFTBLINK_PERIOD_MAX_MS; // wrap
                            } else if (max_set) {
-                               context.params[iof_LED].period_ms = SOFTBLINK_PERIOD_MIN_MS; // wrap
+                               params[iof_LED].period_ms = SOFTBLINK_PERIOD_MIN_MS; // wrap
                            } else {}
 
                            if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
                                if (iof_LED == IOF_RED_LED) {
-                                   context.params[IOF_YELLOW_LED].period_ms = context.params[IOF_RED_LED].period_ms; // set the other
+                                   params[IOF_YELLOW_LED].period_ms = params[IOF_RED_LED].period_ms; // set the other
                                } else if (iof_LED == IOF_YELLOW_LED) {
-                                   context.params[IOF_RED_LED].period_ms = context.params[IOF_YELLOW_LED].period_ms; // set the other
+                                   params[IOF_RED_LED].period_ms = params[IOF_YELLOW_LED].period_ms; // set the other
                                } else {}
                            } else {}
 
                            for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                               if_softblinker[ix].set_LED_period_ms (context.params[ix].period_ms, start_at_dark[ix]);
-                               start_at_dark[ix] = false;
+                               if_softblinker[ix].set_LED_period_ms (params[ix].period_ms, LED_start_at[ix]);
+                               //
+                               LED_start_at[ix] = cont;
                            }
                            for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
                                // Needed since I use SOFTBLINK_DEFAULT_MIN_PERCENTAGE above
-                               if_softblinker[ix].set_LED_intensity_range (context.params[ix].min_percentage, context.params[ix].max_percentage);
+                               if_softblinker[ix].set_LED_intensity_range (params[ix].min_percentage, params[ix].max_percentage);
                            }
                        } else {}
 

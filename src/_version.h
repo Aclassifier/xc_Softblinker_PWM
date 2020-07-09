@@ -12,8 +12,9 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.1.0"
-#define AUDIOMUX_VERSION_NUM   0010
+#define AUDIOMUX_VERSION_STR "0.1.1"
+#define AUDIOMUX_VERSION_NUM   0011
+// 0011 09Jul2020          toggle_LED_phase is new
 // 0010 09Jul2020          Buttons are handled
 //                         warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
 // 0008 04Jul2020          Changed some names. These are much more descriptive: set_LED_intensity_range, set_LED_period_ms and set_LED_intensity

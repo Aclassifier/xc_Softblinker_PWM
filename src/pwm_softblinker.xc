@@ -103,7 +103,7 @@ void softblinker_task (
                 }
             } break;
 
-            case if_softblinker.set_LED_period_ms (const unsigned period_ms_, const bool start_at_dark): {
+            case if_softblinker.set_LED_period_ms (const unsigned period_ms_, const LED_start_at_e LED_start_at): {
 
                 unsigned period_ms = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
 
@@ -112,9 +112,13 @@ void softblinker_task (
 
                 unsigned pwm_one_percent_ticks_ = ((period_ms/SOFTBLINK_PERIOD_MIN_MS) * XS1_TIMER_KHZ);
 
-                if (start_at_dark) {
-                    now_percentage = SOFTBLINK_DEFAULT_MIN_PERCENTAGE; // Will "synchronize" all LEDs to start with dark
-                } else {}
+                if (LED_start_at == dark) {
+                    now_percentage = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
+                } else if (LED_start_at == full) {
+                    now_percentage = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
+                } else {
+                    // cont, no code
+                }
 
                 pwm_one_percent_ticks = pwm_one_percent_ticks_;
 
@@ -336,7 +340,7 @@ void softblinker_pwm_for_LED_task (
                 }
             } break;
 
-            case if_softblinker.set_LED_period_ms (const unsigned period_ms_, const bool start_at_dark): {
+            case if_softblinker.set_LED_period_ms (const unsigned period_ms_, const LED_start_at_e LED_start_at): {
 
                 unsigned period_ms = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
 
@@ -345,9 +349,13 @@ void softblinker_pwm_for_LED_task (
 
                 unsigned pwm_one_percent_ticks_ = ((period_ms/SOFTBLINK_PERIOD_MIN_MS) * XS1_TIMER_KHZ);
 
-                if (start_at_dark) {
+                if (LED_start_at == dark) {
                     softblinker_context.now_percentage = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
-                } else {}
+                } else if (LED_start_at == full) {
+                    softblinker_context.now_percentage = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
+                } else {
+                    // cont, no code
+                }
 
                 softblinker_context.pwm_one_percent_ticks = pwm_one_percent_ticks_;
             } break;
