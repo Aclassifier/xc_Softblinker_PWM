@@ -93,10 +93,11 @@
                         button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
 
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-                            softblinker_pwm_for_LED_task (if_softblinker[IO_YELLOW_LED], yellow_LED);
+                            softblinker_pwm_for_LED_task (IOF_YELLOW_LED, if_softblinker[IOF_YELLOW_LED], yellow_LED);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-                            softblinker_pwm_for_LED_task (if_softblinker[IO_YELLOW_LED], yellow_LED);
-                            softblinker_pwm_for_LED_task (if_softblinker[IOF_RED_LED], red_LED);
+                            // xta: (214) error: Failed to find route with id:
+                            softblinker_pwm_for_LED_task (IOF_YELLOW_LED, if_softblinker[IOF_YELLOW_LED], yellow_LED);
+                            softblinker_pwm_for_LED_task (IOF_RED_LED,    if_softblinker[IOF_RED_LED],    red_LED);
                         #endif
                     }
                 }
@@ -116,19 +117,22 @@
                 #elif (CONFIG_PAR_ON_CORES==2)
                     par { // replicated par not possible since neither port nor on tile or on port may be indexed
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-                            on tile[0].core[6]: softblinker_pwm_for_LED_task (if_softblinker[IO_YELLOW_LED], yellow_LED);
+                            on tile[0].core[6]: softblinker_pwm_for_LED_task (IOF_YELLOW_LED, if_softblinker[IOF_YELLOW_LED], yellow_LED);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-                            on tile[0].core[6]: softblinker_pwm_for_LED_task (if_softblinker[IO_YELLOW_LED], yellow_LED);
-                            on tile[0].core[6]: softblinker_pwm_for_LED_task (if_softblinker[IOF_RED_LED], red_LED);
+                            // xta: (212) error: Failed to find route with id:
+                            on tile[0].core[6]: softblinker_pwm_for_LED_task (IOF_YELLOW_LED, if_softblinker[IOF_YELLOW_LED], yellow_LED);
+                            on tile[0].core[6]: softblinker_pwm_for_LED_task (IOF_RED_LED,    if_softblinker[IOF_RED_LED],    red_LED);
                         #endif
                     }
                 #elif (CONFIG_PAR_ON_CORES==3)
                     par { // replicated par not possible since neither port nor on tile or on port may be indexed
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-                            on tile[0]: softblinker_pwm_for_LED_task (if_softblinker[IO_YELLOW_LED], yellow_LED);
+                            // xta: (113) warning: route(0)     Fail (timing violation) with 22 unknowns, Num Paths: 320, Violation: 40.0 ns, Required: 1.0 us, Worst: 1.0 us, Min Core Frequency: 520 MHz
+                            on tile[0]: softblinker_pwm_for_LED_task (IOF_YELLOW_LED, if_softblinker[IOF_YELLOW_LED], yellow_LED);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-                            on tile[0]: softblinker_pwm_for_LED_task (if_softblinker[IO_YELLOW_LED], yellow_LED);
-                            on tile[0]: softblinker_pwm_for_LED_task (if_softblinker[IOF_RED_LED], red_LED);
+                            // xta: (213) warning: route(0)     Pass with 22 unknowns, Num Paths: 320, Slack: 0.0 ns, Required: 1.0 us, Worst: 1.0 us, Min Core Frequency: 500 MHz
+                            on tile[0]: softblinker_pwm_for_LED_task (IOF_YELLOW_LED, if_softblinker[IOF_YELLOW_LED], yellow_LED);
+                            on tile[0]: softblinker_pwm_for_LED_task (IOF_RED_LED,    if_softblinker[IOF_RED_LED],    red_LED);
                         #endif
                     }
                 #elif (CONFIG_PAR_ON_CORES==5)
@@ -160,13 +164,15 @@
                 }
                 par { // Not [[combine]]
                     #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
+                        // xta: (125) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 750.0 ns, Required: 1.0 us, Worst: 250.0 ns, Min Core Frequency: 125 MHz
                         on tile[0].core[4]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
-                        on tile[0].core[5]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
+                        on tile[0].core[5]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
                     #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
+                        // xta: (225) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
                         on tile[0].core[4]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
-                        on tile[0].core[5]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
-                        on tile[0].core[6]: pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED], red_LED);
-                        on tile[0].core[7]: softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED], if_softblinker[IOF_RED_LED]);
+                        on tile[0].core[5]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
+                        on tile[0].core[6]: pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    red_LED);
+                        on tile[0].core[7]: softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED]);
                     #endif
                 }
             #elif (CONFIG_PAR_ON_CORES==4)
@@ -179,35 +185,58 @@
                         button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]); // [[combinable]]
                         button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
+                            // xta: (124) error: Failed to find route with id: -
                             pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
-                            softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
+                            softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
+                            // xta: (224) error: Failed to find route with id:
                             pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
-                            softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
+                            softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
                             pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    red_LED);
                             softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED]);
                         #endif
                     }
                 }
             #else
-                on tile[0]: {
-                    [[combine]]
-                    par {
-                        softblinker_pwm_button_client_task (if_buttons, if_softblinker);
+                #if (CONFIG_PAR_ON_CORES==8)
+                    // xta:(228) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
+                    // (BEST?)
+                    on tile[0]: {
+                        [[combine]]
+                        par {
+                            // Not time-critical, sll share one core:
+                            softblinker_pwm_button_client_task (if_buttons, if_softblinker);
 
-                        button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);   // [[combinable]]
-                        button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]); // [[combinable]]
-                        button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
+                            button_task      (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);   // [[combinable]]
+                            button_task      (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]); // [[combinable]]
+                            button_task      (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
+                            softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
+                            softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED]);
+                        }
                     }
-                }
+                #else
+                    on tile[0]: {
+                        [[combine]]
+                        par {
+                            softblinker_pwm_button_client_task (if_buttons, if_softblinker);
+
+                            button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);   // [[combinable]]
+                            button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]); // [[combinable]]
+                            button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
+                        }
+                    }
+                #endif
+
                 #if (CONFIG_PAR_ON_CORES==1)
                     par { // replicated par not possible since neither port nor on tile or on port may be indexed
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
+                            // xta: (121) error: Failed to find route with id: -
                             on tile[0].core[6]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
-                            on tile[0].core[6]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
+                            on tile[0].core[6]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
+                            // xta: (221) error: Failed to find route with id:
                             on tile[0].core[6]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
-                            on tile[0].core[6]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
+                            on tile[0].core[6]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
                             on tile[0].core[7]: pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    red_LED);
                             on tile[0].core[7]: softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED]);
                         #endif
@@ -215,21 +244,62 @@
                 #elif (CONFIG_PAR_ON_CORES==2)
                     par { // replicated par not possible since neither port nor on tile or on port may be indexed
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
+                            // xta: (122) error: Failed to find route with id: -
                             on tile[0].core[6]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
-                            on tile[0].core[6]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
+                            on tile[0].core[6]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
+                            // xta: (222) error: Failed to find route with id:
                             on tile[0].core[6]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
-                            on tile[0].core[6]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
+                            on tile[0].core[6]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
                             on tile[0].core[6]: pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    red_LED);
                             on tile[0].core[6]: softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED]);
+                        #endif
+                    }
+                #elif (CONFIG_PAR_ON_CORES==6)
+                    par { // replicated par not possible since neither port nor on tile or on port may be indexed
+                        #if (CONFIG_NUM_SOFTBLIKER_LEDS==2)
+                            // xta: (226) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
+                            on tile[0].core[4]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                            on tile[0].core[5]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
+                            on tile[0].core[6]: pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    red_LED);
+                            on tile[0].core[7]: softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED]);
+                        #else
+                            #error No such combination
+                        #endif
+                    }
+                #elif (CONFIG_PAR_ON_CORES==7)
+                    par { // replicated par not possible since neither port nor on tile or on port may be indexed
+                        #if (CONFIG_NUM_SOFTBLIKER_LEDS==2)
+                            // xta: (227) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
+                            // Time-critical, one core each
+                            on tile[0].core[5]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                            on tile[0].core[6]: pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    red_LED);
+                            // Not time-critical, share a core:
+                            on tile[0].core[7]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
+                            on tile[0].core[7]: softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED]);
+                        #else
+                            #error No such combination
+                        #endif
+                    }
+                #elif (CONFIG_PAR_ON_CORES==8)
+                    par { // replicated par not possible since neither port nor on tile or on port may be indexed
+                        #if (CONFIG_NUM_SOFTBLIKER_LEDS==2)
+                            // xta:(228) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
+                            // Time-critical, one core each (BEST?)
+                            on tile[0].core[6]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
+                            on tile[0].core[7]: pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    red_LED);
+                        #else
+                            #error No such combination
                         #endif
                     }
                 #elif (CONFIG_PAR_ON_CORES==3) // Almost the same as CONFIG_PAR_ON_CORES==5, but this is implicit
                     par { // replicated par not possible since neither port nor on tile or on port may be indexed
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
+                            // xta: (123) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
                             on tile[0]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
-                            on tile[0]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IO_YELLOW_LED]);
+                            on tile[0]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
                         #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
+                            // xta: (223) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
                             on tile[0]: pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
                             on tile[0]: softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED]);
                             on tile[0]: pwm_for_LED_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    red_LED);

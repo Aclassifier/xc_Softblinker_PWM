@@ -12,8 +12,9 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.1.1"
-#define AUDIOMUX_VERSION_NUM   0011
+#define AUDIOMUX_VERSION_STR "0.1.2"
+#define AUDIOMUX_VERSION_NUM   0012
+// 0012 10Jul2020          All xta:(xyz) analysis done with this version. COMPILED WITH (228)
 // 0011 09Jul2020          toggle_LED_phase is new
 // 0010 09Jul2020          Buttons are handled
 //                         warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz

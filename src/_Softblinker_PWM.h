@@ -7,25 +7,14 @@
 
 
 #ifndef SOFTBLINKER_PWM_H_
-    //
-    #define CONFIG_NUM_SOFTBLIKER_LEDS 2 // 2 2 2 2 2 2 2 1 1 2 (1=yellow_LED, 2+=red_LED)
-    #define IOF_YELLOW_LED             0
-    #define IOF_RED_LED                1
-    #define CONFIG_NUM_TASKS_PER_LED   2 // 2 2 2 2 1 1 1 1 2 2
-    #define CONFIG_PAR_ON_CORES        3 // 1 2 3 4 2 3 4 3 3 5                  8-cores  10-timers 32-chanends
-                                         // #                   221: Constraints: C:  3    T:  3     C:  3      M:8432  S:1220  C:6368  D:844  (tile[0])
-                                         //   #                 222: Constraints: C: 2     T: 2      C:  3      M:8160  S:1164  C:6160  D:836  (tile[0]) MY RUNNER UP
-                                         //     #               223: Constraints: C:    5  T:    5   C:      7  M:7124  S:1128  C:5140  D:856  (tile[0])
-                                         //       #             224: Constraints: C:1      T:1       C:0        M:7760  S:908   C:6068  D:784  (tile[0]) MY FAVOURITE
-                                         //         #           212: Constraints: C: 2     T: 2      C:  3      M:7560  S:1036  C:5720  D:804  (tile[0])
-                                         //           #         213: Constraints: C:  3    T:  3     C:   3     M:6812  S:1016  C:4984  D:812  (tile[0])
-                                         //             #       214: Constraints: C:1      T:1       C:0        M:7216  S:828   C:5636  D:752  (tile[0])
-                                         //               #     113: Constraints: C: 2     T: 2      C:  2      M:6468  S:832   C:4868  D:768  (tile[0])
-                                         //                 #   123: Constraints: C:  3    T:  3     C:    4    M:6636  S:888   C:4956  D:792  (tile[0])
-                                         //                   # 225: Constraints: C:    5  T:    5   C:       7 M:7120  S:1124  C:5140  D:856  (tile[0])
 
-    #define LED_START_DARK_FULL {dark, full} // of LED_start_at_e with CONFIG_NUM_SOFTBLIKER_LEDS elements
-    #define LED_START_DARK_DARK {dark, dark} // --"--
+    #if (CONFIG_NUM_SOFTBLIKER_LEDS==2)
+        #define LED_START_DARK_FULL {dark, full} // of LED_start_at_e with CONFIG_NUM_SOFTBLIKER_LEDS elements
+        #define LED_START_DARK_DARK {dark, dark} // --"--
+    #elif (CONFIG_NUM_SOFTBLIKER_LEDS==1)
+        #define LED_START_DARK_FULL {dark} // of LED_start_at_e with CONFIG_NUM_SOFTBLIKER_LEDS elements
+        #define LED_START_DARK_DARK {full} // --"--
+    #endif
 
     // First param minimum is SOFTBLINK_PERIOD_MIN_MS
     #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
@@ -35,6 +24,9 @@
         //                                      200                       // 5 blinks per second
         //                                          0,15                     0,10 not visible when light room, 0,15 barely visible, 0,20 quite visible
     #endif
+
+    #define IOF_YELLOW_LED 0 // To CONFIG_NUM_SOFTBLIKER_LEDS
+    #define IOF_RED_LED    1 // To CONFIG_NUM_SOFTBLIKER_LEDS
 
     [[combinable]]
     void softblinker_pwm_button_client_task (

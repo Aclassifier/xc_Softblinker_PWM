@@ -73,118 +73,123 @@ void softblinker_pwm_button_client_task (
     }
 
     while (true) {
+        select { // Each case passively waits on an event:
 
-         select { // Each case passively waits on an event:
+            // BUTTON ACTION (REPEAT: BUTTON HELD FOR SOME TIME) AT TIMEOUT
+            //
+            case tmr when timerafter (time_ticks) :> void : {
+                time_ticks += (XS1_TIMER_HZ/NUM_TIMEOUTS_PER_SECOND);
+                // ...
+            } break; // timerafter
 
-               // BUTTON ACTION (REPEAT: BUTTON HELD FOR SOME TIME) AT TIMEOUT
-               //
-               case tmr when timerafter (time_ticks) :> void : {
-                   time_ticks += (XS1_TIMER_HZ/NUM_TIMEOUTS_PER_SECOND);
-                   // ...
-               } break; // timerafter
+            // BUTTON PRESSES
+            //
+            case i_buttons_in[int iof_button].button (const button_action_t button_action) : {
 
-               // BUTTON PRESSES
-               //
-               case i_buttons_in[int iof_button].button (const button_action_t button_action) : {
+                buttons_action[iof_button] = button_action;
 
-                   buttons_action[iof_button] = button_action;
+                debug_print ("BUTTON [%u]=%u -> ", iof_button, button_action);
 
-                   debug_print ("BUTTON [%u]=%u -> ", iof_button, button_action);
+                const bool pressed_now      = (button_action == BUTTON_ACTION_PRESSED);  // 1
+                const bool pressed_for_long = (button_action == BUTTON_ACTION_PRESSED_FOR_LONG); // 2 Not used
+                const bool released_now     = (button_action == BUTTON_ACTION_RELEASED); // 2
 
-                   const bool pressed_now      = (button_action == BUTTON_ACTION_PRESSED);  // 1
-                   const bool pressed_for_long = (button_action == BUTTON_ACTION_PRESSED_FOR_LONG); // 2 Not used
-                   const bool released_now     = (button_action == BUTTON_ACTION_RELEASED); // 2
+                if (pressed_now) {
 
-                   if (pressed_now) {
+                    unsigned iof_LED;
+                    bool     button_taken = false;
 
-                       unsigned iof_LED;
-                       bool     button_taken = false;
+                    switch (iof_button) {
+                        case IOF_BUTTON_LEFT: {
+                            iof_LED = IOF_YELLOW_LED;
+                            if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
+                                // No code, see below
+                            } else if (params[iof_LED].period_ms < 1000) {
+                                params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
+                            } else {
+                                params[iof_LED].period_ms += 2000;
+                            }
+                            button_taken = true;
+                        } break;
 
-                       switch (iof_button) {
-                           case IOF_BUTTON_LEFT: {
-                               iof_LED = IOF_YELLOW_LED;
-                               if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
-                                   // No code, see below
-                               } else if (params[iof_LED].period_ms < 1000) {
-                                   params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
-                               } else {
-                                   params[iof_LED].period_ms += 2000;
-                               }
-                               button_taken = true;
-                           } break;
+                        case IOF_BUTTON_CENTER: {
+                            if (toggle_LED_phase) {
+                                const LED_start_at_e LED_start_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_FULL; // This and..
+                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                    LED_start_at[ix] = LED_start_at_now[ix];
+                                }
+                            } else {
+                                const LED_start_at_e LED_start_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_DARK; // .. this are "180 degrees" out of phase
+                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                    LED_start_at[ix] = LED_start_at_now[ix];
+                                }
+                            }
+                            toggle_LED_phase = not toggle_LED_phase;
 
-                           case IOF_BUTTON_CENTER: {
-                               if (toggle_LED_phase) {
-                                   const LED_start_at_e LED_start_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_FULL; // This and..
-                                   for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                       LED_start_at[ix] = LED_start_at_now[ix];
-                                   }
-                               } else {
-                                   const LED_start_at_e LED_start_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_DARK; // .. this are "180 degrees" out of phase
-                                   for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                       LED_start_at[ix] = LED_start_at_now[ix];
-                                   }
-                               }
-                               toggle_LED_phase = not toggle_LED_phase;
+                            for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                if_softblinker[ix].set_LED_intensity_range (SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MIN_PERCENTAGE); // OFF!
+                            }
+                        } break;
 
-                               for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                   if_softblinker[ix].set_LED_intensity_range (SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MIN_PERCENTAGE); // OFF!
-                               }
-                           } break;
+                        case IOF_BUTTON_RIGHT: {
+                            iof_LED = IOF_RED_LED;
+                            if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
+                                // No code, see below
+                            } else if (params[iof_LED].period_ms < 1000) {
+                                params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
+                            } else {
+                                params[iof_LED].period_ms += 2000;
+                            }
+                            button_taken = true;
+                        } break;
 
-                           case IOF_BUTTON_RIGHT: {
-                               iof_LED = IOF_RED_LED;
-                               if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
-                                   // No code, see below
-                               } else if (params[iof_LED].period_ms < 1000) {
-                                   params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
-                               } else {
-                                   params[iof_LED].period_ms += 2000;
-                               }
-                               button_taken = true;
-                           } break;
+                        default : {} break;
+                    } // Outer switch
 
-                           default : {} break;
-                       } // Outer switch
 
-                       if (button_taken) {
-                           bool min_set;
-                           bool max_set;
+                    if (button_taken) {
+                        bool min_set;
+                        bool max_set;
 
-                           {params[iof_LED].period_ms, min_set, max_set} =
-                                   in_range_signed_min_max_set (
-                                           params[iof_LED].period_ms,
-                                           SOFTBLINK_PERIOD_MIN_MS,
-                                           SOFTBLINK_PERIOD_MAX_MS);
-                           if (min_set) {
-                               params[iof_LED].period_ms = SOFTBLINK_PERIOD_MAX_MS; // wrap
-                           } else if (max_set) {
-                               params[iof_LED].period_ms = SOFTBLINK_PERIOD_MIN_MS; // wrap
-                           } else {}
+                        {params[iof_LED].period_ms, min_set, max_set} =
+                               in_range_signed_min_max_set (
+                                       params[iof_LED].period_ms,
+                                       SOFTBLINK_PERIOD_MIN_MS,
+                                       SOFTBLINK_PERIOD_MAX_MS);
+                        if (min_set) {
+                            params[iof_LED].period_ms = SOFTBLINK_PERIOD_MAX_MS; // wrap
+                        } else if (max_set) {
+                            params[iof_LED].period_ms = SOFTBLINK_PERIOD_MIN_MS; // wrap
+                        } else {}
 
-                           if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
-                               if (iof_LED == IOF_RED_LED) {
-                                   params[IOF_YELLOW_LED].period_ms = params[IOF_RED_LED].period_ms; // set the other
-                               } else if (iof_LED == IOF_YELLOW_LED) {
-                                   params[IOF_RED_LED].period_ms = params[IOF_YELLOW_LED].period_ms; // set the other
-                               } else {}
-                           } else {}
+                        if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
+                            #if (CONFIG_NUM_SOFTBLIKER_LEDS==2)
+                                if (iof_LED == IOF_RED_LED) {
+                                    params[IOF_YELLOW_LED].period_ms = params[IOF_RED_LED].period_ms; // set the other
+                                } else if (iof_LED == IOF_YELLOW_LED) {
+                                    params[IOF_RED_LED].period_ms = params[IOF_YELLOW_LED].period_ms; // set the other
+                                } else {}
+                            #elif (CONFIG_NUM_SOFTBLIKER_LEDS==1)
+                                // No code, meaningless
+                            #endif
+                        } else {}
 
-                           for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                               if_softblinker[ix].set_LED_period_ms (params[ix].period_ms, LED_start_at[ix]);
-                               //
-                               LED_start_at[ix] = cont;
-                           }
-                           for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                               // Needed since I use SOFTBLINK_DEFAULT_MIN_PERCENTAGE above
-                               if_softblinker[ix].set_LED_intensity_range (params[ix].min_percentage, params[ix].max_percentage);
-                           }
-                       } else {}
 
-                   } else {
-                       // Not pressed_now, no code
-                   }
-               } break; // select i_buttons_in
-           }
-      }
+                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                            if_softblinker[ix].set_LED_period_ms (params[ix].period_ms, LED_start_at[ix]);
+                            //
+                            LED_start_at[ix] = cont;
+                        }
+                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                            // Needed since I use SOFTBLINK_DEFAULT_MIN_PERCENTAGE above
+                            if_softblinker[ix].set_LED_intensity_range (params[ix].min_percentage, params[ix].max_percentage);
+                        }
+                    } else {}
+
+                } else {
+                    // Not pressed_now, no code
+                }
+            } break; // select i_buttons_in
+        }
+    }
 }

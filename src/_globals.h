@@ -79,4 +79,30 @@
                                  // 1: controlled locally in each xc file
                                  //    PRINTING WILL DISTURB 1MS PERCENTAGE UPDATE MESSAGES, SO BOTH LEDS WILL "BLINK"
 
+// CONFIGURATIONS                 (xyz)
+#define CONFIG_NUM_SOFTBLIKER_LEDS 2   // [1,2]
+#define CONFIG_NUM_TASKS_PER_LED    2  // [1,2]
+#define CONFIG_PAR_ON_CORES          8 // [1-8]
+                                       // (xyz)                                8-cores  10-timers 32-chanends  From my_script-xta (code will run even if timing analysis fails!)
+                                       // (11z)  1 LED 1 TASK
+                                       // (113):                Constraints:   C: 2     T: 2      C:  2        Violation: 40.0 ns
+                                       // (12z)  1 LEDS 2 TASKS
+                                       // (121):                Constraints:   C: 2     T: 2      C:  2               error: Failed to find route with id:
+                                       // (122):                Constraints:   C:1      T:1       C:0                 error: Failed to find route with id:
+                                       // (123):                Constraints:   C:  3    T:  3     C:    4      Slack: 760.0 ns
+                                       // (124):                Constraints:   C: 2     T: 2      C:  2               error: Failed to find route with id:
+                                       // (125):                Constraints:   C:  3    T:  3     C:    4      Slack: 750.0 ns
+                                       // (21z)  2 LEDS 1 TASK
+                                       // (212):                Constraints:   C: 2     T: 2      C:  3                error: Failed to find route with id:
+                                       // (213):                Constraints:   C:  3    T:  3     C:   3       Slack: 0.0 ns
+                                       // (214):                Constraints:   C:1      T:1       C:0                 error: Failed to find route with id:
+                                       // (22z)  2 LEDS 2 TASKS
+                                       // (221):                Constraints:   C:  3    T:  3     C:  3               error: Failed to find route with id:
+                                       // (222):                Constraints:   C: 2     T: 2      C:  3               error: Failed to find route with id:
+                                       // (223):                Constraints:   C:    5  T:    5   C:      7    Slack: 760.0 ns
+                                       // (224):                Constraints:   C:1      T:1       C:0                 error: Failed to find route with id:
+                                       // (225):                Constraints:   C:    5  T:    5   C:       7   Slack: 760.0 ns
+                                       // (226):                Constraints:   C:    5  T:    5   C:       7   Slack: 760.0 ns
+                                       // (227):                Constraints:   C:   4   T:   4    C:      6    Slack: 760.0 ns
+                                       // (228):                Constraints:   C:  3    T:  3     C:     3     Slack: 760.0 ns
 #endif /* GLOBALS_H_ */

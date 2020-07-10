@@ -1,9 +1,30 @@
 # load "/Users/teig/workspace/_Softblinker_PWM/bin/_Softblinker_PWM.xe"
 #
+# Compiled with configuration, see file "_globals.h"
+# I think "error: Failed to find route with id:" means that there is no path for itself that it can analyse, the cycles are shared on that core(?)
+#
+# (113) warning: route(0)     Fail (timing violation) with 22 unknowns, Num Paths: 320, Violation: 40.0 ns, Required: 1.0 us, Worst: 1.0 us, Min Core Frequency: 520 MHz
+# (121) warning: no valid paths of execution AND error: Failed to find route with id: 
+# (122) same as (121)
+# (123) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
+# (124) same as (121)
+# (125) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 750.0 ns, Required: 1.0 us, Worst: 250.0 ns, Min Core Frequency: 125 MHz
+# (212) same as (121)
+# (213) warning: route(0)     Pass with 22 unknowns, Num Paths: 320, Slack: 0.0 ns, Required: 1.0 us, Worst: 1.0 us, Min Core Frequency: 500 MHz
+# (214) same as (121)
+# (221) same as (121) 
+# (222) same as (121)
+# (223) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
+# (224) same as (121)
+# (225) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
+# (226) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
+# (227) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
+# (228) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
 
-# analyze endpoints start stop 
-# set required - 1000 us
-
+# COMMENT THE BELOW LINES AWAY IF YOU MUST RUN THIS CODE (else no .xe file is built)
+#
 analyze loop start
 set required - 1.0 us
 
+# analyze endpoints start stop 
+# set required - 1000 us

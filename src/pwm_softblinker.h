@@ -62,26 +62,29 @@
         void set_LED_intensity (const percentage_t percentage); // [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
     } pwm_if;
 
-    // Only used when CONFIG_NUM_TASKS_PER_LED==2
-    [[combinable]]
-    void softblinker_task (
-            const unsigned        id_task, // For printing only
-            client pwm_if         if_pwm,
-            server softblinker_if if_softblinker);
+    #if (CONFIG_NUM_TASKS_PER_LED==2)
 
-    // Only used when CONFIG_NUM_TASKS_PER_LED==2
-    [[combinable]]
-    void pwm_for_LED_task (
-            const unsigned      id_task, // For printing only
-            server pwm_if       if_pwm,
-            out buffered port:1 outP1);
+        [[combinable]]
+        void softblinker_task (
+                const unsigned        id_task, // For printing only
+                client pwm_if         if_pwm,
+                server softblinker_if if_softblinker);
 
-    // Only used when CONFIG_NUM_TASKS_PER_LED==1
-    [[combinable]]
-    void softblinker_pwm_for_LED_task (
-            const unsigned        id_task, // For printing only
-            server softblinker_if if_softblinker,
-            out buffered port:1   outP1);
+        // Only used when CONFIG_NUM_TASKS_PER_LED==2
+        [[combinable]]
+        void pwm_for_LED_task (
+                const unsigned      id_task, // For printing only
+                server pwm_if       if_pwm,
+                out buffered port:1 outP1);
+    #endif
+
+    #if (CONFIG_NUM_TASKS_PER_LED==1)
+        [[combinable]]
+        void softblinker_pwm_for_LED_task (
+                const unsigned        id_task, // For printing only
+                server softblinker_if if_softblinker,
+                out buffered port:1   outP1);
+    #endif
 
 #else
     #error Nested include PWM_SOFTBLINKER_H_
