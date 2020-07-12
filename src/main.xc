@@ -67,8 +67,19 @@
     in buffered port:1 inP_button_center = on tile[0]: XS1_PORT_1N; // External GPIO-J1.PIN61 (B3)
     in buffered port:1 inP_button_right  = on tile[0]: XS1_PORT_1O; // External GPIO-J1.PIN59 (B2)
 
-    out buffered port:1 outP1_external_red_led    = on tile[0]: XS1_PORT_1F; // External GPIO-J1.PIN37 LED 470R to 3V3. LOW IS ON
-    out buffered port:1 outP1_external_yellow_led = on tile[0]: XS1_PORT_1E; // External GPIO-J1.PIN39 LED 470R to 3V3. LOW IS ON
+    #if (ALLOW_REUSE_OF_ONBOARD_PORTS == 1)
+        out buffered port:1 outP1_external_yellow_led_alt = on tile[0]: XS1_PORT_1E; // External GPIO-J1.PIN39 LED 470R to 3V3. LOW IS ON (*1)
+        out buffered port:1 outP1_external_red_led_alt    = on tile[0]: XS1_PORT_1F; // External GPIO-J1.PIN37 LED 470R to 3V3. LOW IS ON (*2)
+        // (*1) and (*2)
+        // SCK and SDA for I2C use by on-board sensors. May be disconnected by removing R52 and R49 _underneath_ the board.
+        // But the BMG1160 3-axis gyroscope and the FXOS8700CQ 3D accelerometer plus megnetometer don't seem to care if I don't remove R52 and R49.
+        // Perhaps it's because I only wrote to the ports?
+    #elif (ALLOW_REUSE_OF_ONBOARD_PORTS == 0)
+        out buffered port:1 outP1_external_yellow_led = on tile[0]: XS1_PORT_1G; // External GPIO-J1.PIN35 LED 470R to 3V3. LOW IS ON
+        out buffered port:1 outP1_external_red_led    = on tile[0]: XS1_PORT_1H; // External GPIO-J1.PIN33 LED 470R to 3V3. LOW IS ON
+    #else
+        #error not defined
+    #endif
 
     #define red_LED    outP1_external_red_led
     #define yellow_LED outP1_external_yellow_led

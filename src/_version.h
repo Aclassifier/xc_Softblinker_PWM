@@ -12,8 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.1.2"
-#define AUDIOMUX_VERSION_NUM   0012
+#define AUDIOMUX_VERSION_STR "0.1.3"
+#define AUDIOMUX_VERSION_NUM   0013
+
+// 0013 12Jul2020          ALLOW_REUSE_OF_ONBOARD_PORTS is new. Now using value 0. COMPILED WITH (228)
 // 0012 10Jul2020          All xta:(xyz) analysis done with this version. COMPILED WITH (228)
 // 0011 09Jul2020          toggle_LED_phase is new
 // 0010 09Jul2020          Buttons are handled
