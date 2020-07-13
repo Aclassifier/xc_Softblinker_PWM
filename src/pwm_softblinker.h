@@ -58,8 +58,13 @@
     #define PWM_PORT_PIN_SIGN active_low // active_low/1  and 100,100 = LED ON
                                          // active_high/0 and 100,100 = LED OFF
 
+#define XTA_001 0
+
     typedef interface pwm_if {
-        void set_LED_intensity (const percentage_t percentage); // [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
+        void set_LED_intensity            (const percentage_t percentage); // [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
+        #if (XTA_001 == 1)
+            void set_LED_intensity_allow_stop (const percentage_t percentage); // [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
+        #endif
     } pwm_if;
 
     #if (CONFIG_NUM_TASKS_PER_LED==2)

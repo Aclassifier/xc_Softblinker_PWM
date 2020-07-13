@@ -167,10 +167,7 @@ typedef enum {activated, deactivated} port_is_e;
         time32_t        timeout;
         port_pin_sign_e port_pin_sign;
         unsigned        pwm_one_percent_ticks;
-        time32_t        port_activated_percentage;         // This and the below are reciprocal, to make the select case
-                                                           // have the same number of cycles (and then save i minus in one)
-                                                           // xta slack from 760 to 780.0 ns because of this
-        time32_t        C_minus_port_activated_percentage; // C=Roman 100-port_activated_percentage
+        time32_t        port_activated_percentage;
         bool            pwm_running;
         port_is_e       port_is;
         // ---
@@ -181,7 +178,6 @@ typedef enum {activated, deactivated} port_is_e;
 
         pwm_one_percent_ticks             = PWM_ONE_PERCENT_TICS;
         port_activated_percentage         = 100;                  // This implies [1], [2] and [3] below
-        C_minus_port_activated_percentage = 0;
         pwm_running                       = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
         port_is                           = activated;            // [2] "LED on"
                                                              //
@@ -201,7 +197,9 @@ typedef enum {activated, deactivated} port_is_e;
                         DEACTIVATE_PORT(port_pin_sign);
                         // timeout += (C_minus_port_activated_percentage * pwm_one_percent_ticks); // Slack 780 ns, worst 220 ns
                         // "loading" the same variable port_activated_percentage twice in the loop, even if one does an arithmetic
-                        // operation, is faster by 30 ns than introdducing a separate pre-calculated 100-value! Thanks, XTA!
+                        // operation, is faster by 30 ns than introducing a separate pre-calculated 100-value! Thanks, XTA!
+                        // See commit id c8a5283 (13Jul2020)
+                        // But observe that the set_LED_intensity may also delay the "start" loop
                         timeout += ((100 - port_activated_percentage) * pwm_one_percent_ticks);
 
                         port_is  = deactivated;;
@@ -210,27 +208,31 @@ typedef enum {activated, deactivated} port_is_e;
 
                 case if_pwm.set_LED_intensity (const percentage_t percentage) : {
 
-                    port_activated_percentage         = percentage;
-                    C_minus_port_activated_percentage = 100 - port_activated_percentage;
+                    port_activated_percentage = percentage;
+                    pwm_running = true; // Thinest pulse I could see was about 200 ns 0051.png
 
-                    pwm_running = true; // If this was not set to true xta did not find any acceptable "start". FANTASTIC!
-                                        // 0049.png and 0050.png showed the shortest I could see: 200 ns pulse
-                    /*
-                    if (port_activated_percentage == 100) { // No need to involve any timerafter and get a short "off" blip
-                        pwm_running = false;
-                        ACTIVATE_PORT(port_pin_sign);
-                    } else if (port_activated_percentage == 0) { // No need to involve any timerafter and get a short "on" blink
-                        pwm_running = false;
-                        DEACTIVATE_PORT(port_pin_sign);
-                    } else if (not pwm_running) {
-                        pwm_running = true;
-                        tmr :> timeout; // immediate timeout
-                    } else { // pwm_running already
-                        // No code
-                        // Don't disturb running timerafter, just let it use the new port_activated_percentage when it gets there
-                    }
-                    */
                 } break;
+
+                #if (XTA_001 == 1)
+                    case if_pwm.set_LED_intensity_allow_stop (const percentage_t percentage) : {
+
+                         port_activated_percentage = percentage;
+
+                         if (port_activated_percentage == 100) { // No need to involve any timerafter and get a short "off" blip
+                             pwm_running = false;
+                             ACTIVATE_PORT(port_pin_sign);
+                         } else if (port_activated_percentage == 0) { // No need to involve any timerafter and get a short "on" blink
+                             pwm_running = false;
+                             DEACTIVATE_PORT(port_pin_sign);
+                         } else if (not pwm_running) {
+                             pwm_running = true;
+                             tmr :> timeout; // immediate timeout
+                         } else { // pwm_running already
+                             // No code
+                             // Don't disturb running timerafter, just let it use the new port_activated_percentage when it gets there
+                         }
+                    } break;
+                #endif
             }
         }
     }
