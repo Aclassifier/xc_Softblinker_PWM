@@ -37,11 +37,11 @@
 
     typedef interface softblinker_if {
         //  FULLY
-        void set_LED_intensity_range (                     // ON  OFF (opposite if port_pin_sign_e set opposite)
-                const percentage_t min_percentage,         // 100   0     [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
-                const percentage_t max_percentage);        // 100   0     [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
+        void set_LED_intensity_range (              // ON  OFF (opposite if port_pin_sign_e set opposite)
+                const percentage_t min_percentage,  // 100   0     [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
+                const percentage_t max_percentage); // 100   0     [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
 
-        void set_LED_period_ms (
+        void set_LED_period_linear_ms (
                 const unsigned       period_ms, // [SOFTBLINK_PERIOD_MIN_MS..SOFTBLINK_PERIOD_MAX_MS] between two max or two min
                 const LED_start_at_e LED_start_at);
 
@@ -68,14 +68,15 @@
         void softblinker_task (
                 const unsigned        id_task, // For printing only
                 client pwm_if         if_pwm,
-                server softblinker_if if_softblinker);
+                server softblinker_if if_softblinker,
+                out buffered port:1   out_port_toggle_on_direction_change); // Toggle when LED max
 
         // Only used when CONFIG_NUM_TASKS_PER_LED==2
         [[combinable]]
         void pwm_for_LED_task (
                 const unsigned      id_task, // For printing only
                 server pwm_if       if_pwm,
-                out buffered port:1 outP1);
+                out buffered port:1 out_port_LED);  // LED
     #endif
 
     #if (CONFIG_NUM_TASKS_PER_LED==1)
@@ -83,7 +84,8 @@
         void softblinker_pwm_for_LED_task (
                 const unsigned        id_task, // For printing only
                 server softblinker_if if_softblinker,
-                out buffered port:1   outP1);
+                out buffered port:1   out_port_LED,  // LED
+                out buffered port:1   out_port_toggle_on_direction_change); // Toggle when LED max
     #endif
 
 #else

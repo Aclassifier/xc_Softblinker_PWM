@@ -18,11 +18,18 @@
 
     // First param minimum is SOFTBLINK_PERIOD_MIN_MS
     #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-        #define PARAMS_PERIODMS_MINPRO_MAXPRO {{8000,10,80}}             // period_ms, min_percentage, max_percentage
+        #define PARAMS_PERIODMS_MINPRO_MAXPRO {1000,0,100}}              // period_ms, min_percentage, max_percentage
     #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-        #define PARAMS_PERIODMS_MINPRO_MAXPRO {{1000,0,100},{6000,0,100}} // period_ms, min_percentage, max_percentage times CONFIG_NUM_SOFTBLIKER_LEDS
+        #define PARAMS_PERIODMS_MINPRO_MAXPRO {{200,0,100},{200,0,100}} // period_ms, min_percentage, max_percentage times CONFIG_NUM_SOFTBLIKER_LEDS
         //                                      200                       // 5 blinks per second
         //                                          0,15                     0,10 not visible when light room, 0,15 barely visible, 0,20 quite visible
+        // {{1000,0,100},{1000,0,100}} 2.4us 0044.png init
+        // {{ 800,0,100},{ 800,0,100}} 2.4us same
+        // {{ 600,0,100},{ 600,0,100}} 2.4us same
+        // {{ 600,0,100},{ 600,0,100}} 2.4us same
+        // {{ 400,0,100},{ 400,0,100}} 2.4us same
+        // {{ 200,0,100},{ 200,0,100}} 2.4us same
+        // After right button up up and to 200 again then center to synschronize, back to 2.4us
     #endif
 
     #define IOF_YELLOW_LED 0 // To CONFIG_NUM_SOFTBLIKER_LEDS

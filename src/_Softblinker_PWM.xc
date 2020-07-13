@@ -65,7 +65,7 @@ void softblinker_pwm_button_client_task (
             params[ix].max_percentage = params_now[ix].max_percentage;
             LED_start_at[ix]          = dark;
             // And use them
-            if_softblinker[ix].set_LED_period_ms       (params[ix].period_ms, LED_start_at[ix]);
+            if_softblinker[ix].set_LED_period_linear_ms       (params[ix].period_ms, LED_start_at[ix]);
             if_softblinker[ix].set_LED_intensity_range (params[ix].min_percentage, params[ix].max_percentage);
             // Back to normal
             LED_start_at[ix] = cont;
@@ -91,7 +91,7 @@ void softblinker_pwm_button_client_task (
                 debug_print ("BUTTON [%u]=%u -> ", iof_button, button_action);
 
                 const bool pressed_now      = (button_action == BUTTON_ACTION_PRESSED);  // 1
-                const bool pressed_for_long = (button_action == BUTTON_ACTION_PRESSED_FOR_LONG); // 2 Not used
+                const bool pressed_for_long = (button_action == BUTTON_ACTION_PRESSED_FOR_LONG); // 2
                 const bool released_now     = (button_action == BUTTON_ACTION_RELEASED); // 2
 
                 if (pressed_now) {
@@ -162,6 +162,7 @@ void softblinker_pwm_button_client_task (
                             params[iof_LED].period_ms = SOFTBLINK_PERIOD_MIN_MS; // wrap
                         } else {}
 
+                        // IOF_BUTTON_LEFT or IOF_BUTTON_RIGHT
                         if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
                             #if (CONFIG_NUM_SOFTBLIKER_LEDS==2)
                                 if (iof_LED == IOF_RED_LED) {
@@ -174,16 +175,16 @@ void softblinker_pwm_button_client_task (
                             #endif
                         } else {}
 
-
-                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                            if_softblinker[ix].set_LED_period_ms (params[ix].period_ms, LED_start_at[ix]);
-                            //
-                            LED_start_at[ix] = cont;
-                        }
                         for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
                             // Needed since I use SOFTBLINK_DEFAULT_MIN_PERCENTAGE above
                             if_softblinker[ix].set_LED_intensity_range (params[ix].min_percentage, params[ix].max_percentage);
                         }
+                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                            if_softblinker[ix].set_LED_period_linear_ms (params[ix].period_ms, LED_start_at[ix]);
+                            //
+                            LED_start_at[ix] = cont;
+                        }
+
                     } else {}
 
                 } else {

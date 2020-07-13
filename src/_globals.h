@@ -52,7 +52,6 @@
 
 #if (MYTARGET==XCORE-200-EXPLORER)
     #define IS_MYTARGET                  IS_MYTARGET_XCORE_200_EXPLORER
-    #define ALLOW_REUSE_OF_ONBOARD_PORTS 0 // 1 is true
     // Observe PWM=001 for xflash
 #elif (MYTARGET==XCORE-XA-MODULE)
     #define IS_MYTARGET IS_MYTARGET_XCORE_XA_MODULE

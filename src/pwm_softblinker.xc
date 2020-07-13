@@ -35,7 +35,8 @@
     void softblinker_task (
             const unsigned        id_task, // For printing only
             client pwm_if         if_pwm,
-            server softblinker_if if_softblinker)
+            server softblinker_if if_softblinker,
+            out buffered port:1   out_port_toggle_on_direction_change)   // Toggle when LED max
     {
         debug_print ("%u softblinker_task started\n", id_task);
 
@@ -48,6 +49,7 @@
         percentage_t max_percentage;
         percentage_t min_percentage;
         signed       inc_percentage;
+        bool         port_toggle_on_direction_change = false;
         // ---
 
         pwm_running = false;
@@ -73,6 +75,8 @@
                             in_range_signed_min_max_set (now_percentage, min_percentage, max_percentage); // [0..100]
 
                     if ((min_set) or (max_set)) { // Send 100 and 0 only once
+                        out_port_toggle_on_direction_change <: port_toggle_on_direction_change;
+                        port_toggle_on_direction_change = not port_toggle_on_direction_change;
                         inc_percentage = (-inc_percentage); // Change sign for next timeout to scan in the other direction
                     } else {
                         if_pwm.set_LED_intensity ((percentage_t) now_percentage); // [0..100]
@@ -104,12 +108,15 @@
                     }
                 } break;
 
-                case if_softblinker.set_LED_period_ms (const unsigned period_ms_, const LED_start_at_e LED_start_at): {
+                case if_softblinker.set_LED_period_linear_ms (const unsigned period_ms_, const LED_start_at_e LED_start_at): {
+
+                    // It seems like linear is ok for softblinking of a LED, ie. "softblink" is soft
+                    // I have not tried any other, like sine. I would assume it would feel like dark longer
 
                     unsigned period_ms = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
 
                     // Printing disturbs 1ms update messages above, so will appear to "blink"
-                    debug_print ("%u set_LED_period_ms %u\n", id_task, period_ms);
+                    debug_print ("%u set_LED_period_linear_ms %u\n", id_task, period_ms);
 
                     unsigned pwm_one_percent_ticks_ = ((period_ms/SOFTBLINK_PERIOD_MIN_MS) * XS1_TIMER_KHZ);
 
@@ -140,10 +147,10 @@
 //
 typedef enum {activated, deactivated} port_is_e;
 
-#define ACTIVATE_PORT(sign) do {outP1 <: (1 xor sign);} while (0)
+#define ACTIVATE_PORT(sign) do {out_port_LED <: (1 xor sign);} while (0)
         // to activated: 0 = 1 xor 1 = [1 xor active_low]
 
-#define DEACTIVATE_PORT(sign) do {outP1 <: (0 xor sign);} while (0)
+#define DEACTIVATE_PORT(sign) do {out_port_LED <: (0 xor sign);} while (0)
         // to deactivated: 1 = 0 xor 1 = [0 xor active_low]
 //
 
@@ -153,14 +160,17 @@ typedef enum {activated, deactivated} port_is_e;
     void pwm_for_LED_task (
             const unsigned      id_task, // For printing only
             server pwm_if       if_pwm,
-            out buffered port:1 outP1)
+            out buffered port:1 out_port_LED) // LED
     {
         // --- pwm_context_t for softblinker_pwm_for_LED_task
         timer           tmr;
         time32_t        timeout;
         port_pin_sign_e port_pin_sign;
         unsigned        pwm_one_percent_ticks;
-        time32_t        port_activated_percentage;
+        time32_t        port_activated_percentage;         // This and the below are reciprocal, to make the select case
+                                                           // have the same number of cycles (and then save i minus in one)
+                                                           // xta slack from 760 to 780.0 ns because of this
+        time32_t        C_minus_port_activated_percentage; // C=Roman 100-port_activated_percentage
         bool            pwm_running;
         port_is_e       port_is;
         // ---
@@ -169,12 +179,13 @@ typedef enum {activated, deactivated} port_is_e;
 
         debug_print ("%u pwm_for_LED_task started\n", id_task);
 
-        pwm_one_percent_ticks     = PWM_ONE_PERCENT_TICS;
-        port_activated_percentage = 100;                  // This implies [1], [2] and [3] below
-        pwm_running               = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
-        port_is                   = activated;            // [2] "LED on"
-                                                          //
-        ACTIVATE_PORT(port_pin_sign);                     // [3]
+        pwm_one_percent_ticks             = PWM_ONE_PERCENT_TICS;
+        port_activated_percentage         = 100;                  // This implies [1], [2] and [3] below
+        C_minus_port_activated_percentage = 0;
+        pwm_running                       = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
+        port_is                           = activated;            // [2] "LED on"
+                                                             //
+        ACTIVATE_PORT(port_pin_sign);                        // [3]
 
         while (1) {
             // #pragma ordered // May be used if not [[combinable]] to assure priority of the PWM, if that is wanted
@@ -188,19 +199,27 @@ typedef enum {activated, deactivated} port_is_e;
                         port_is  = activated;
                     } else {
                         DEACTIVATE_PORT(port_pin_sign);
+                        // timeout += (C_minus_port_activated_percentage * pwm_one_percent_ticks); // Slack 780 ns, worst 220 ns
+                        // "loading" the same variable port_activated_percentage twice in the loop, even if one does an arithmetic
+                        // operation, is faster by 30 ns than introdducing a separate pre-calculated 100-value! Thanks, XTA!
                         timeout += ((100 - port_activated_percentage) * pwm_one_percent_ticks);
+
                         port_is  = deactivated;;
                     }
                 } break;
 
                 case if_pwm.set_LED_intensity (const percentage_t percentage) : {
 
-                    port_activated_percentage = percentage;
+                    port_activated_percentage         = percentage;
+                    C_minus_port_activated_percentage = 100 - port_activated_percentage;
 
-                    if (port_activated_percentage == 100) { // No need to involve any timerafter and get a short off blip
+                    pwm_running = true; // If this was not set to true xta did not find any acceptable "start". FANTASTIC!
+                                        // 0049.png and 0050.png showed the shortest I could see: 200 ns pulse
+                    /*
+                    if (port_activated_percentage == 100) { // No need to involve any timerafter and get a short "off" blip
                         pwm_running = false;
                         ACTIVATE_PORT(port_pin_sign);
-                    } else if (port_activated_percentage == 0) { // No need to involve any timerafter and get a short on blink
+                    } else if (port_activated_percentage == 0) { // No need to involve any timerafter and get a short "on" blink
                         pwm_running = false;
                         DEACTIVATE_PORT(port_pin_sign);
                     } else if (not pwm_running) {
@@ -210,6 +229,7 @@ typedef enum {activated, deactivated} port_is_e;
                         // No code
                         // Don't disturb running timerafter, just let it use the new port_activated_percentage when it gets there
                     }
+                    */
                 } break;
             }
         }
@@ -243,7 +263,7 @@ typedef struct softblinker_context_t {
 
     void set_LED_intensity (
             pwm_context_t       &pwm_context,
-            out buffered port:1 outP1,
+            out buffered port:1 out_port_LED,
             const percentage_t  percentage)
     {
         pwm_context.port_activated_percentage = percentage;
@@ -267,7 +287,8 @@ typedef struct softblinker_context_t {
     void softblinker_pwm_for_LED_task (
             const unsigned        id_task, // For printing only
             server softblinker_if if_softblinker,
-            out buffered port:1   outP1)
+            out buffered port:1   out_port_LED, // LED
+            out buffered port:1   out_port_toggle_on_direction_change) // Toggle when LED max
     {
         debug_print ("%u softblinker_pwm_for_LED_task started\n", id_task);
 
@@ -322,7 +343,7 @@ typedef struct softblinker_context_t {
                     if ((min_set) or (max_set)) { // Send 100 and 0 only once
                         softblinker_context.inc_percentage = (-softblinker_context.inc_percentage); // Change sign for next timeout to scan in the other direction
                     } else {
-                        set_LED_intensity (pwm_context, outP1, (percentage_t) softblinker_context.now_percentage); // [0..100]
+                        set_LED_intensity (pwm_context, out_port_LED, (percentage_t) softblinker_context.now_percentage); // [0..100]
                     }
 
                 } break;
@@ -337,7 +358,7 @@ typedef struct softblinker_context_t {
 
                     if (softblinker_context.max_percentage == softblinker_context.min_percentage) { // No change of intensity
                         softblinker_context.pwm_running = false;
-                        set_LED_intensity (pwm_context, outP1, softblinker_context.max_percentage);
+                        set_LED_intensity (pwm_context, out_port_LED, softblinker_context.max_percentage);
                         // No code, timerafter will do it
                     } else if (not softblinker_context.pwm_running) {
                         softblinker_context.pwm_running = true;
@@ -348,12 +369,12 @@ typedef struct softblinker_context_t {
                     }
                 } break;
 
-                case if_softblinker.set_LED_period_ms (const unsigned period_ms_, const LED_start_at_e LED_start_at): {
+                case if_softblinker.set_LED_period_linear_ms (const unsigned period_ms_, const LED_start_at_e LED_start_at): {
 
                     unsigned period_ms = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
 
                     // Printing disturbs 1ms update messages above, so will appear to "blink"
-                    debug_print ("%u set_LED_period_ms %u\n", id_task, period_ms);
+                    debug_print ("%u set_LED_period_linear_ms %u\n", id_task, period_ms);
 
                     unsigned pwm_one_percent_ticks_ = ((period_ms/SOFTBLINK_PERIOD_MIN_MS) * XS1_TIMER_KHZ);
 
