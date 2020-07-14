@@ -26,5 +26,7 @@
 analyze loop start
 set required - 1.0 us
 
+# warning: route(0)     Fail (missing loop iterations) with 16 unknowns, Num Paths: 64, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
+
 # analyze endpoints start stop 
 # set required - 1000 us

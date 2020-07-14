@@ -209,30 +209,29 @@ typedef enum {activated, deactivated} port_is_e;
                 case if_pwm.set_LED_intensity (const percentage_t percentage) : {
 
                     port_activated_percentage = percentage;
-                    pwm_running = true; // Thinest pulse I could see was about 200 ns 0051.png
 
+                    #if (SET_LED_INTENSITY_CONTINUOUS_MODE == 1)
+                        // XTA: Worst: 190.0 ns
+                        pwm_running = true; // Thinest pulse I could see was about 200 ns 0051.png
+                    #elif (SET_LED_INTENSITY_CONTINUOUS_MODE == 0)
+                        // XTA: Worst: 240.0 ns
+                        if (port_activated_percentage == 100) { // No need to involve any timerafter and get a short "off" blip
+                            pwm_running = false;
+                            ACTIVATE_PORT(port_pin_sign);
+                        } else if (port_activated_percentage == 0) { // No need to involve any timerafter and get a short "on" blink
+                            pwm_running = false;
+                            DEACTIVATE_PORT(port_pin_sign);
+                        } else if (not pwm_running) {
+                            pwm_running = true;
+                            tmr :> timeout; // immediate timeout
+                        } else { // pwm_running already
+                            // No code
+                            // Don't disturb running timerafter, just let it use the new port_activated_percentage when it gets there
+                        }
+                    #else
+                        #error
+                    #endif
                 } break;
-
-                #if (XTA_001 == 1)
-                    case if_pwm.set_LED_intensity_allow_stop (const percentage_t percentage) : {
-
-                         port_activated_percentage = percentage;
-
-                         if (port_activated_percentage == 100) { // No need to involve any timerafter and get a short "off" blip
-                             pwm_running = false;
-                             ACTIVATE_PORT(port_pin_sign);
-                         } else if (port_activated_percentage == 0) { // No need to involve any timerafter and get a short "on" blink
-                             pwm_running = false;
-                             DEACTIVATE_PORT(port_pin_sign);
-                         } else if (not pwm_running) {
-                             pwm_running = true;
-                             tmr :> timeout; // immediate timeout
-                         } else { // pwm_running already
-                             // No code
-                             // Don't disturb running timerafter, just let it use the new port_activated_percentage when it gets there
-                         }
-                    } break;
-                #endif
             }
         }
     }
