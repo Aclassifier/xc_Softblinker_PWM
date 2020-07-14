@@ -105,8 +105,8 @@
     #define yellow_LED outP1_external_yellow_led
     #define red_LED    outP1_external_red_led
 
-    #define yellow_DIRCHANGE outP1_external_yellow_dirchange
-    #define red_DIRCHANGE    outP1_external_red_dirchange
+    #define yellow_DIRCHANGE outP1_external_yellow_dirchange // period
+    #define red_DIRCHANGE    outP1_external_red_dirchange    // period
 
 #endif
 

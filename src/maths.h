@@ -9,10 +9,18 @@
 #ifndef MATHS_H_
 #define MATHS_H_
 
-int8_t               in_range_int8               (const int8_t value, const int8_t lowest, const int8_t highest);
-{int8_t, bool, bool} in_range_int8_min_max_set   (const int8_t value, const int8_t lowest, const int8_t highest);
-signed               in_range_signed             (const signed value, const signed lowest, const signed highest);
-{signed, bool, bool} in_range_signed_min_max_set (const signed value, const signed lowest, const signed highest);
+int8_t in_range_int8   (const int8_t value, const int8_t lowest, const int8_t highest);
+signed in_range_signed (const signed value, const signed lowest, const signed highest);
+
+{   int8_t, // new value [lowest..highest]
+    bool,   // min_set is true when one below lowest
+    bool    // max_set is true when one above highest
+} in_range_int8_min_max_set (const int8_t value, const int8_t lowest, const int8_t highest);
+
+{   signed, // new value [lowest..highest]
+    bool,   // min_set is true when one below lowest
+    bool    // max_set is true when one above highest
+}in_range_signed_min_max_set (const signed value, const signed lowest, const signed highest);
 
 #else
     #error Nested include MATHS_H_

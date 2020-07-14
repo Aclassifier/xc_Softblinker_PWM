@@ -8,11 +8,15 @@
 #ifndef PWM_SOFTBLINKER_H_
     #define PWM_SOFTBLINKER_H_
 
-    typedef unsigned                          percentage_t; // [0..100]
-    typedef enum {scan_none, scan_continuous} scan_type_e;
-    typedef enum {active_high, active_low}    port_pin_sign_e;
+    typedef unsigned                                  percentage_t; // [0..100]
+    typedef enum {scan_none, scan_continuous}         scan_type_e;
+    typedef enum {active_high, active_low}            port_pin_sign_e;
+    typedef enum {continuous_LED, dark_LED, full_LED} start_LED_at_e;
 
-    typedef enum {cont, dark, full} LED_start_at_e;
+    typedef enum {
+        slide_transition_pwm, // PWM pulses will slide with respect to period pulse like yellow_DIRCHANGE
+        lock_transition_pwm   // PWM pulses are locked --"--
+    } transition_pwm_e;
 
     #define PERCENTAGE_US          1000                            // 1000
     #define PERCENTAGE_MS          (PERCENTAGE_US          / 1000) //    1
@@ -42,8 +46,9 @@
                 const percentage_t max_percentage); // 100   0     [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
 
         void set_LED_period_linear_ms (
-                const unsigned       period_ms, // [SOFTBLINK_PERIOD_MIN_MS..SOFTBLINK_PERIOD_MAX_MS] between two max or two min
-                const LED_start_at_e LED_start_at);
+                const unsigned         period_ms, // [SOFTBLINK_PERIOD_MIN_MS..SOFTBLINK_PERIOD_MAX_MS] between two max or two min
+                const start_LED_at_e   start_LED_at,
+                const transition_pwm_e transition_pwm);
 
     } softblinker_if;
 
@@ -61,7 +66,7 @@
     #define SET_LED_INTENSITY_CONTINUOUS_MODE 0
 
     typedef interface pwm_if {
-        void set_LED_intensity (const percentage_t percentage); // [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
+        void set_LED_intensity (const percentage_t percentage, const transition_pwm_e transition_pwm); // [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
     } pwm_if;
 
     #if (CONFIG_NUM_TASKS_PER_LED==2)

@@ -12,10 +12,11 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.1.6"
-#define AUDIOMUX_VERSION_NUM   0016
+#define AUDIOMUX_VERSION_STR "0.1.7"
+#define AUDIOMUX_VERSION_NUM   0017
 
-// 016  14Jul2020          More experimenting with XTA in pwm_for_LED_task, just for the keeps
+// 0017 14Jul2020 PWM=003  Correct period so that 200.00 ms is 200.00 ms!
+// 0016 14Jul2020          More experimenting with XTA in pwm_for_LED_task, just for the keeps
 // 0015 13Jul2020          More experimenting with XTA in pwm_for_LED_task, just for the keeps
 // 0014 13Jul2020          Experimenting with XTA in pwm_for_LED_task, just for the keeps
 //                         set_LED_period_ms -> set_LED_period_linear_ms is a better name, to show that others are possible
