@@ -27,7 +27,7 @@
     #include "_Softblinker_PWM.h"
 #endif
 
-#define DEBUG_PRINT_TEST 0
+#define DEBUG_PRINT_TEST 1
 #define debug_print(fmt, ...) do { if((DEBUG_PRINT_TEST==1) and (DEBUG_PRINT_GLOBAL_APP==1)) printf(fmt, __VA_ARGS__); } while (0)
 
 #define NUM_TIMEOUTS_PER_SECOND 2
@@ -44,13 +44,15 @@ void softblinker_pwm_button_client_task (
         server button_if      i_buttons_in[BUTTONS_NUM_CLIENTS],
         client softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS])
 {
-    timer                                tmr;
-    time32_t                             time_ticks; // Ticks to 100 in 1 us
-    button_action_t                      buttons_action [BUTTONS_NUM_CLIENTS];
-    params_t                             params         [CONFIG_NUM_SOFTBLIKER_LEDS];
-    start_LED_at_e                       start_LED_at   [CONFIG_NUM_SOFTBLIKER_LEDS];
-    bool                                 toggle_LED_phase = false;
-    transition_pwm_e                     transition_pwm   = lock_transition_pwm;
+    timer            tmr;
+    time32_t         time_ticks; // Ticks to 100 in 1 us
+    button_action_t  buttons_action [BUTTONS_NUM_CLIENTS];
+    params_t         params         [CONFIG_NUM_SOFTBLIKER_LEDS];
+    start_LED_at_e   start_LED_at   [CONFIG_NUM_SOFTBLIKER_LEDS];
+    bool             toggle_LED_phase                   = false;
+    transition_pwm_e transition_pwm                     = lock_transition_pwm;
+    bool             a_side_button_pressed_while_center = false; // PWM=004 new
+    bool             write_LEDs_intensity_and_period    = false; // PWM=004 new
 
     for (unsigned ix = 0; ix < BUTTONS_NUM_CLIENTS; ix++) {
         buttons_action[ix] = BUTTON_ACTION_VOID;
@@ -95,7 +97,16 @@ void softblinker_pwm_button_client_task (
                 const bool pressed_for_long = (button_action == BUTTON_ACTION_PRESSED_FOR_LONG); // 2
                 const bool released_now     = (button_action == BUTTON_ACTION_RELEASED); // 2
 
-                if (pressed_now) {
+                if (released_now) {
+                    if (iof_button == IOF_BUTTON_CENTER) {
+                        if (a_side_button_pressed_while_center) {
+                            // Nothing happened, let's go on again, but now with toggle_LED_phase changed
+                            a_side_button_pressed_while_center = false;
+                            write_LEDs_intensity_and_period = true;
+                        } else {}
+                    } else {}
+
+                } else if (pressed_now) {
 
                     unsigned iof_LED;
                     bool     button_taken = false;
@@ -104,7 +115,7 @@ void softblinker_pwm_button_client_task (
                         case IOF_BUTTON_LEFT: {
                             iof_LED = IOF_YELLOW_LED;
                             if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
-                                // No code, see below
+                                a_side_button_pressed_while_center = true;
                             } else if (params[iof_LED].period_ms < 1000) {
                                 params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
                             } else {
@@ -138,7 +149,7 @@ void softblinker_pwm_button_client_task (
                         case IOF_BUTTON_RIGHT: {
                             iof_LED = IOF_RED_LED;
                             if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
-                                // No code, see below
+                                a_side_button_pressed_while_center = true;
                             } else if (params[iof_LED].period_ms < 1000) {
                                 params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
                             } else {
@@ -179,21 +190,25 @@ void softblinker_pwm_button_client_task (
                             #endif
                         } else {}
 
-                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                            // Needed since I use SOFTBLINK_DEFAULT_MIN_PERCENTAGE above
-                            if_softblinker[ix].set_LED_intensity_range (params[ix].min_percentage, params[ix].max_percentage);
-                        }
-                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                            if_softblinker[ix].set_LED_period_linear_ms (params[ix].period_ms, start_LED_at[ix], transition_pwm);
-                            //
-                            start_LED_at[ix] = continuous_LED;
-                        }
+                        write_LEDs_intensity_and_period = true;
 
-                    } else {}
+                    } else {} // not button_taken
 
                 } else {
                     // Not pressed_now, no code
                 }
+
+                if (write_LEDs_intensity_and_period) {
+                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                        // Needed since I use SOFTBLINK_DEFAULT_MIN_PERCENTAGE above
+                        if_softblinker[ix].set_LED_intensity_range (params[ix].min_percentage, params[ix].max_percentage);
+                    }
+                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                        if_softblinker[ix].set_LED_period_linear_ms (params[ix].period_ms, start_LED_at[ix], transition_pwm);
+                        //
+                        start_LED_at[ix] = continuous_LED;
+                    }
+                } else {}
             } break; // select i_buttons_in
         }
     }

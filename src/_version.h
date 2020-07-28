@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.1.7"
-#define AUDIOMUX_VERSION_NUM   0017
+#define AUDIOMUX_VERSION_STR "0.1.8"
+#define AUDIOMUX_VERSION_NUM   0018
 
+// 0018 28Jul2020 PWM=004  IOF_BUTTON_CENTER pressed and non of the others pressed now makes sense
 // 0017 14Jul2020 PWM=003  Correct period so that 200.00 ms is 200.00 ms!
 // 0016 14Jul2020          More experimenting with XTA in pwm_for_LED_task, just for the keeps
 // 0015 13Jul2020          More experimenting with XTA in pwm_for_LED_task, just for the keeps
