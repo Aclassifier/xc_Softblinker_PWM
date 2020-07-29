@@ -17,12 +17,16 @@
     #endif
 
     // First param minimum is SOFTBLINK_PERIOD_MIN_MS
+
+     #define MINPRO   0
+     #define MAXPRO 100
+
     #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-        #define PARAMS_PERIODMS_MINPRO_MAXPRO {1000,0,100}}              // period_ms, min_percentage, max_percentage
+        #define PARAMS_PERIODMS_MINPRO_MAXPRO {1000,MINPRO,MAXPRO}}                     // period_ms, min_percentage, max_percentage
     #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-        #define PARAMS_PERIODMS_MINPRO_MAXPRO {{200,0,100},{200,0,100}} // period_ms, min_percentage, max_percentage times CONFIG_NUM_SOFTBLIKER_LEDS
-        //                                      200                       // 5 blinks per second
-        //                                          0,15                     0,10 not visible when light room, 0,15 barely visible, 0,20 quite visible
+        #define PARAMS_PERIODMS_MINPRO_MAXPRO {{200,MINPRO,MAXPRO},{200,MINPRO,MAXPRO}} // period_ms, min_percentage, max_percentage times CONFIG_NUM_SOFTBLIKER_LEDS
+        //                                      200                                     // 5 blinks per second
+        //                                          0,     15           0,     10 not visible when light room, 0,15 barely visible, 0,20 quite visible
         // {{1000,0,100},{1000,0,100}} 2.4us 0044.png init
         // {{ 800,0,100},{ 800,0,100}} 2.4us same
         // {{ 600,0,100},{ 600,0,100}} 2.4us same

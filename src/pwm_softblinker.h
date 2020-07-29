@@ -10,7 +10,7 @@
 
     typedef unsigned                                  percentage_t; // [0..100]
     typedef enum {scan_none, scan_continuous}         scan_type_e;
-    typedef enum {active_high, active_low}            port_pin_sign_e;
+    typedef enum {active_high, active_low}            port_pin_sign_e; // Must be {0,1} like this! Use of XOR is dependent on it!
     typedef enum {continuous_LED, dark_LED, full_LED} start_LED_at_e;
 
     typedef enum {
@@ -18,13 +18,19 @@
         lock_transition_pwm   // PWM pulses are locked --"--
     } transition_pwm_e;
 
-    #define PERCENTAGE_US          1000                            // 1000
-    #define PERCENTAGE_MS          (PERCENTAGE_US          / 1000) //    1
-    #define PERCENTAGE_0_TO_100_MS (PERCENTAGE_MS          *  100) //  100
-    #define PERIOD_MS              (PERCENTAGE_0_TO_100_MS *   2)  //  200 A period is * 2
+                                           // PWM=005 flickering is because 100 intensity levels are not enough!
+    #define SOFTBLINK_DEFAULT_PERIOD_MS 30 // 30 ms goes to 100 in 3.0 seconds, when this is the timing. 10 makes no difference
+                                           // ##
+    #define PWM_ONE_PERCENT_US 100         // 30  100 ->  10 pulses per 0_TO_100 ( 10 NEW percentage steps): flickers at low intensity. Not nice
+                                           // 30   50  -> 20 pulses per 0-TO_100 ( 20 NEW percentage steps): flickers som at low intensity. Borderline
+                                           // 30   25  -> 40 pulses per 0-TO_100 ( 40 NEW percentage steps): flickers som at low intensity. Better
+                                           // 30   10 -> 100 pulses per 0_TO_100 (100 NEW percentage steps): no flickering at low intensity. OK
+
+    #define SOFTBLINK_DEFAULT_MIN_PERCENTAGE   0
+    #define SOFTBLINK_DEFAULT_MAX_PERCENTAGE 100
 
     #define PWM_ONE_PERCENT_TICS \
-       (100 * XS1_TIMER_MHZ)        // 100 us 1% on is a pulse of 100 us every 10 ms 100 Hz
+       (PWM_ONE_PERCENT_US * XS1_TIMER_MHZ) // 100 us 1% on is a pulse of 100 us every 10 ms 100 Hz
     // ####
     // #### AMUX=002 analysis:
     // #### Observe that the number of timeouts ....... _DOES_ .. depend on this value (but the XCORE is "made for" this)
@@ -34,10 +40,9 @@
     //  200 us 1% on is a pulse of 200 us every  20 ms  50  Hz works fine, no blinking, some effect when box moves,   ok softblink
     //  100 us 1% on is a pulse of 100 us every  10 ms 100  Hz works fine, no blinking,                               perfect softblink
     //   10 us 1% on is a pulse of  10 us every  1 ms    1 kHz works fine, no blinking,                               perfect softblink
-    //   10 us I scoped this
 
-    #define SOFTBLINK_PERIOD_MIN_MS (PERIOD_MS) // 200 ms = 5 blinks per second (100% up and 100% down in 1ms resolution)
-    #define SOFTBLINK_PERIOD_MAX_MS  10000      // 10 seconds, not related to anything else than _MS
+    #define SOFTBLINK_PERIOD_MIN_MS   200 //   200 ms (5 blinks per second (100% up and 100% down in 1ms resolution))
+    #define SOFTBLINK_PERIOD_MAX_MS 10000 // 10000 ms
 
     typedef interface softblinker_if {
         //  FULLY
@@ -52,16 +57,11 @@
 
     } softblinker_if;
 
-    #define SOFTBLINK_DEFAULT_PERIOD_MS 30 // 30 ms goes to 100 in 3.0 seconds, when this is the timing:
-
-    #define SOFTBLINK_DEFAULT_MIN_PERCENTAGE   0
-    #define SOFTBLINK_DEFAULT_MAX_PERCENTAGE 100
-
     // XMOS not raised TICKET (as of 23Jun2020): No matter how much I tweeaked the code, if this was set as
     // a parameter into any of the tasks in pwm_softblinker, I had to touch that file to have it recompiled
     // See code 0178, 0179, 0180, 0181
-    #define PWM_PORT_PIN_SIGN active_low // active_low/1  and 100,100 = LED ON
-                                         // active_high/0 and 100,100 = LED OFF
+    #define PWM_PORT_PIN_SIGN active_high // active_low when LED pulled down from 3Vs
+                                          // active_high when LED or LED strip drivedn by buffer transistor
 
     #define SET_LED_INTENSITY_CONTINUOUS_MODE 0
 

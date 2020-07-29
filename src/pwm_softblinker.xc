@@ -167,7 +167,7 @@
         // --- softblinker_context_t for softblinker_pwm_for_LED_task
         timer            tmr;
         time32_t         timeout;
-        bool             pwm_running;
+        bool             auto_next_intensity_running;
         unsigned         pwm_one_percent_ticks;
         signed           now_percentage;
         percentage_t     max_percentage;
@@ -176,20 +176,20 @@
         transition_pwm_e transition_pwm;
         // ---
 
-        pwm_running           = false;
-        pwm_one_percent_ticks = SOFTBLINK_DEFAULT_PERIOD_MS * XS1_TIMER_KHZ;
-        now_percentage        = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
-        max_percentage        = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
-        min_percentage        = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
-        inc_percentage        = DEC_ONE_DOWN;
-        transition_pwm        = slide_transition_pwm;
+        auto_next_intensity_running = false;
+        pwm_one_percent_ticks       = SOFTBLINK_DEFAULT_PERIOD_MS * XS1_TIMER_KHZ;
+        now_percentage              = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
+        max_percentage              = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
+        min_percentage              = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
+        inc_percentage              = DEC_ONE_DOWN;
+        transition_pwm              = slide_transition_pwm;
 
         tmr :> timeout;
         timeout += pwm_one_percent_ticks;
 
         while (1) {
             select {
-                case (pwm_running) => tmr when timerafter(timeout) :> void: {
+                case (auto_next_intensity_running) => tmr when timerafter(timeout) :> void: {
 
                     timeout += pwm_one_percent_ticks;
                     // Both min_percentage, now_percentage and max_percentage are set outside this block
@@ -219,18 +219,18 @@
                     max_percentage = (percentage_t) in_range_signed ((signed) max_percentage_, SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MAX_PERCENTAGE);
 
                     if (max_percentage == min_percentage) { // No change of intensity
-                        pwm_running = false;
+                        auto_next_intensity_running = false;
                         if_pwm.set_LED_intensity (max_percentage, transition_pwm);
-                    } else if (not pwm_running) {
-                        pwm_running = true;
+                    } else if (not auto_next_intensity_running) {
+                        auto_next_intensity_running = true;
                         tmr :> timeout; // immediate timeout
-                    } else { // pwm_running already
+                    } else { // auto_next_intensity_running already
                         // No code
                         // Don't disturb running timerafter
                     }
 
                     // Printing disturbs 1ms update messages above, so will appear to "blink"
-                    debug_print ("%u set_LED_intensity (%u, %d) min %u now %d max %u \n", id_task, pwm_running, inc_percentage, min_percentage, now_percentage, max_percentage);
+                    debug_print ("%u set_LED_intensity (%u, %d) min %u now %d max %u \n", id_task, auto_next_intensity_running, inc_percentage, min_percentage, now_percentage, max_percentage);
                 } break;
 
                 case if_softblinker.set_LED_period_linear_ms (
@@ -257,7 +257,7 @@
                     transition_pwm = transition_pwm_;
 
                     // Printing disturbs 1ms update messages above, so will appear to "blink"
-                    debug_print ("%u set_LED_period_linear_ms %u (%u, %d) min %u now %d max %u\n", id_task, period_ms, pwm_running, inc_percentage, min_percentage, now_percentage, max_percentage);
+                    debug_print ("%u set_LED_period_linear_ms %u (%u, %d) min %u now %d max %u\n", id_task, period_ms, auto_next_intensity_running, inc_percentage, min_percentage, now_percentage, max_percentage);
 
                 } break;
             }
@@ -306,12 +306,12 @@ typedef enum {activated, deactivated} port_is_e;
 
         debug_print ("%u pwm_for_LED_task started\n", id_task);
 
-        pwm_one_percent_ticks             = PWM_ONE_PERCENT_TICS;
-        port_activated_percentage         = 100;                  // This implies [1], [2] and [3] below
-        pwm_running                       = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
-        port_is                           = activated;            // [2] "LED on"
-                                                             //
-        ACTIVATE_PORT(port_pin_sign);                        // [3]
+        pwm_one_percent_ticks     = PWM_ONE_PERCENT_TICS;
+        port_activated_percentage = 100;                  // This implies [1], [2] and [3] below
+        pwm_running               = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
+        port_is                   = activated;            // [2] "LED on"
+                                                          //
+        ACTIVATE_PORT(port_pin_sign);                     // [3]
 
         while (1) {
             // #pragma ordered // May be used if not [[combinable]] to assure priority of the PWM, if that is wanted
@@ -377,7 +377,7 @@ typedef struct pwm_context_t {
 typedef struct softblinker_context_t {
     timer        tmr;
     time32_t     timeout;
-    bool         pwm_running;
+    bool         auto_next_intensity_running;
     unsigned     pwm_one_percent_ticks;
     signed       now_percentage;
     percentage_t max_percentage;
@@ -422,18 +422,18 @@ typedef struct softblinker_context_t {
         pwm_context_t         pwm_context;
         softblinker_context_t softblinker_context;
 
-        softblinker_context.pwm_running           = false;
-        softblinker_context.pwm_one_percent_ticks = SOFTBLINK_DEFAULT_PERIOD_MS * XS1_TIMER_KHZ;
-        softblinker_context.now_percentage        = SOFTBLINK_DEFAULT_MAX_PERCENTAGE; // [-1..101]
-        softblinker_context.max_percentage        = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
-        softblinker_context.min_percentage        = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
-        softblinker_context.inc_percentage        = (-1); // [-1,+1]
+        softblinker_context.auto_next_intensity_running = false;
+        softblinker_context.pwm_one_percent_ticks       = SOFTBLINK_DEFAULT_PERIOD_MS * XS1_TIMER_KHZ;
+        softblinker_context.now_percentage              = SOFTBLINK_DEFAULT_MAX_PERCENTAGE; // [-1..101]
+        softblinker_context.max_percentage              = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
+        softblinker_context.min_percentage              = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
+        softblinker_context.inc_percentage              = (-1); // [-1,+1]
 
-        pwm_context.port_pin_sign             = PWM_PORT_PIN_SIGN;
-        pwm_context.pwm_one_percent_ticks     = PWM_ONE_PERCENT_TICS; // 10 uS. So 99% means 990 us activated and 10 us deactivated
-        pwm_context.port_activated_percentage = 100;                  // This implies [1], [2] and [3] below
-        pwm_context.pwm_running               = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
-        pwm_context.port_is                   = activated;            // [2] "LED on"
+        pwm_context.port_pin_sign               = PWM_PORT_PIN_SIGN;
+        pwm_context.pwm_one_percent_ticks       = PWM_ONE_PERCENT_TICS; // 10 uS. So 99% means 990 us activated and 10 us deactivated
+        pwm_context.port_activated_percentage   = 100;                  // This implies [1], [2] and [3] below
+        pwm_context.auto_next_intensity_running = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
+        pwm_context.port_is                     = activated;            // [2] "LED on"
                                                                       //
         ACTIVATE_PORT(pwm_context.port_pin_sign);                     // [3]
 
@@ -444,7 +444,7 @@ typedef struct softblinker_context_t {
             // #pragma ordered // May be used if not [[combinable]] to assure priority of the PWM, if that is needed
             #pragma xta endpoint "start"
             select {
-                case (pwm_context.pwm_running) => pwm_context.tmr when timerafter(pwm_context.timeout) :> void: {
+                case (pwm_context.auto_next_intensity_running) => pwm_context.tmr when timerafter(pwm_context.timeout) :> void: {
                     if (pwm_context.port_is == deactivated) {
                         #pragma xta endpoint "stop"
                         ACTIVATE_PORT(pwm_context.port_pin_sign);
@@ -457,7 +457,7 @@ typedef struct softblinker_context_t {
                     }
                 } break;
 
-                case (softblinker_context.pwm_running) => softblinker_context.tmr when timerafter(softblinker_context.timeout) :> void: {
+                case (softblinker_context.auto_next_intensity_running) => softblinker_context.tmr when timerafter(softblinker_context.timeout) :> void: {
                     bool min_set;
                     bool max_set;
 
@@ -484,13 +484,13 @@ typedef struct softblinker_context_t {
                     softblinker_context.max_percentage = (percentage_t) in_range_signed ((signed) max_percentage_, SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MAX_PERCENTAGE);
 
                     if (softblinker_context.max_percentage == softblinker_context.min_percentage) { // No change of intensity
-                        softblinker_context.pwm_running = false;
+                        softblinker_context.auto_next_intensity_running = false;
                         set_LED_intensity (pwm_context, out_port_LED, softblinker_context.max_percentage);
                         // No code, timerafter will do it
-                    } else if (not softblinker_context.pwm_running) {
-                        softblinker_context.pwm_running = true;
+                    } else if (not softblinker_context.auto_next_intensity_running) {
+                        softblinker_context.auto_next_intensity_running = true;
                         softblinker_context.tmr :> softblinker_context.timeout; // immediate timeout
-                    } else { // pwm_running already
+                    } else { // auto_next_intensity_running already
                         // No code
                         // Don't disturb running timerafter
                     }

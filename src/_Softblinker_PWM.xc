@@ -36,6 +36,7 @@ typedef struct params_t {
     unsigned     period_ms;
     percentage_t min_percentage;
     percentage_t max_percentage;
+    percentage_t now_percentage; // PWM=005 flickering is because 100 intensity levels are not enough!
 } params_t;
 
 
@@ -66,6 +67,7 @@ void softblinker_pwm_button_client_task (
             params[ix].period_ms      = params_now[ix].period_ms;
             params[ix].min_percentage = params_now[ix].min_percentage;
             params[ix].max_percentage = params_now[ix].max_percentage;
+            params[ix].now_percentage = params_now[ix].min_percentage;
             start_LED_at[ix]          = dark_LED;
             // And use them
             if_softblinker[ix].set_LED_period_linear_ms       (params[ix].period_ms, start_LED_at[ix], transition_pwm);
@@ -100,10 +102,11 @@ void softblinker_pwm_button_client_task (
                 if (released_now) {
                     if (iof_button == IOF_BUTTON_CENTER) {
                         if (a_side_button_pressed_while_center) {
-                            // Nothing happened, let's go on again, but now with toggle_LED_phase changed
                             a_side_button_pressed_while_center = false;
+                        } else {
+                            // Nothing happened, let's go on again, but now with toggle_LED_phase changed
                             write_LEDs_intensity_and_period = true;
-                        } else {}
+                        }
                     } else {}
 
                 } else if (pressed_now) {
@@ -116,11 +119,17 @@ void softblinker_pwm_button_client_task (
                             iof_LED = IOF_YELLOW_LED;
                             if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
                                 a_side_button_pressed_while_center = true;
-                            } else if (params[iof_LED].period_ms < 1000) {
-                                params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
-                            } else {
-                                params[iof_LED].period_ms += 2000;
-                            }
+                            } else /* if (params[iof_LED].period_ms < 1000) */ {
+                                //params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
+
+                                // PWM=005 flickering is because 100 intensity levels are not enough!
+                                params[iof_LED].now_percentage++;
+                                params[iof_LED].min_percentage = params[iof_LED].now_percentage;
+                                params[iof_LED].max_percentage = params[iof_LED].now_percentage;
+
+                            } //else {
+                                // params[iof_LED].period_ms += 2000;
+                            //}
                             button_taken = true;
                         } break;
 
