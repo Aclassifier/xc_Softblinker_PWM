@@ -63,6 +63,7 @@ period_ms_to_one_step_ticks (
         signed            inc_steps;
         transition_pwm_e  transition_pwm;
         intensity_steps_e intensity_steps;
+        unsigned          frequency_Hz;
         // ---
 
         do_next_intensity_at_intervals = false;
@@ -72,6 +73,7 @@ period_ms_to_one_step_ticks (
         inc_steps                      = DEC_ONE_DOWN;
         transition_pwm                 = slide_transition_pwm;
         intensity_steps                = DEFAULT_INTENSITY_STEPS;
+        frequency_Hz                   = DEFAULT_PWM_FREQUENCY_HZ;
 
         one_step_at_intervals_ticks = period_ms_to_one_step_ticks (DEFAULT_SOFTBLINK_PERIOD_MS, intensity_steps);
 
@@ -100,7 +102,7 @@ period_ms_to_one_step_ticks (
 
                     // [1..100] [99..0] (Eaxmple for steps_0100)
 
-                    if_pwm.set_LED_intensity (intensity_steps, (intensity_t) now_intensity, transition_pwm);
+                    if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, (intensity_t) now_intensity, transition_pwm);
 
                 } break;
 
@@ -116,7 +118,7 @@ period_ms_to_one_step_ticks (
 
                     if (max_intensity == min_intensity) { // No change of intensity
                         do_next_intensity_at_intervals = false;
-                        if_pwm.set_LED_intensity (intensity_steps, max_intensity, transition_pwm);
+                        if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, max_intensity, transition_pwm);
                     } else if (not do_next_intensity_at_intervals) {
                         do_next_intensity_at_intervals = true;
                         tmr :> timeout; // immediate timeout
@@ -224,17 +226,16 @@ typedef enum {activated, deactivated} port_is_e;
                 } break;
 
                 case if_pwm.set_LED_intensity (
-                        // const unsigned          frequency_Hz,
+                        const unsigned          frequency_Hz,
                         const intensity_steps_e intensity_steps_,
                         const intensity_t       intensity, // Normalised to intensity_steps (allways ON when intensity == intensity_steps_)
                         const transition_pwm_e  transition_pwm) : {
 
-                    //const period_us = 1000000 / frequency_Hz;
-
+                    const unsigned period_us_ticks = (XS1_TIMER_MHZ * 1000000U) / frequency_Hz; // 1M/f us and * for ticks
 
                     intensity_steps = intensity_steps_;
 
-                    intensity_unit_ticks = (PWM_ALWAYS_ON_US * XS1_TIMER_MHZ) / intensity_steps;
+                    intensity_unit_ticks = period_us_ticks / intensity_steps;
 
                     intensity_port_activated = intensity;
 

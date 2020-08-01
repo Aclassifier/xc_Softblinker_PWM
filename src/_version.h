@@ -12,10 +12,11 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.2.1"
-#define AUDIOMUX_VERSION_NUM   0021
+#define AUDIOMUX_VERSION_STR "0.2.2"
+#define AUDIOMUX_VERSION_NUM   0022
 
-// 021  01Aug2020          Just a snapshot before introducing PWM period
+// 0022 01Aug2020          First version of PWM period introduced
+// 0021 01Aug2020          Just a snapshot before introducing PWM period
 // 0020 29Jul2020 PWM=005  My concept og percent ie 100 levels of intensity causes clickering at low levels!
 //                         This version with LEFT_BUUTON presses increases intensity from 0 by 1% per press
 //                         Each step is easily seen and it's got to show up as fliceking when soft-blinking soft

@@ -41,7 +41,11 @@
 
     #define SOFTBLINK_DEFAULT_PERIOD_MS 3 // So with steps_1000 it would take 3 seconds DARK_TO_FULL
 
-    #define PWM_ALWAYS_ON_US 1000 // When intensity_steps_e has been reached
+    #define DEFAULT_PWM_FREQUENCY_HZ 222
+    //                               222 Hz no flickering (Should cause no "unperceived neurological effects"). Same as aquarium
+    //                               100 Hz quite nice
+    //                                60 Hz show the effect quite well
+    //                                30 Hz terrible
 
     #define SOFTBLINK_PERIOD_MIN_MS   200 // TODO replace with dark_LED  200 ms (5 blinks per second (100% up and 100% down in 1ms resolution))
     #define SOFTBLINK_PERIOD_MAX_MS 10000 // TODO replace with full_LED 10000 ms
@@ -71,6 +75,7 @@
     typedef interface pwm_if {
 
         void set_LED_intensity (
+                const unsigned          frequency_Hz,
                 const intensity_steps_e intensity_steps,
                 const intensity_t       intensity, // Normalised to intensity_steps (allways ON when intensity == intensity_steps)
                 const transition_pwm_e  transition_pwm);
