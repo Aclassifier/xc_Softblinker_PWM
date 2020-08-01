@@ -231,11 +231,22 @@ typedef enum {activated, deactivated} port_is_e;
                         const intensity_t       intensity, // Normalised to intensity_steps (allways ON when intensity == intensity_steps_)
                         const transition_pwm_e  transition_pwm) : {
 
-                    const unsigned period_us_ticks = (XS1_TIMER_MHZ * 1000000U) / frequency_Hz; // 1M/f us and * for ticks
-
                     intensity_steps = intensity_steps_;
 
-                    intensity_unit_ticks = period_us_ticks / intensity_steps;
+                    #define XTA_TEST_SET_LED_INTENSITY 0
+
+                    #if (XTA_TEST_SET_LED_INTENSITY == 0)
+                        // Pass with 14 unknowns, Num Paths: 7, Slack: 470.0 ns, Required: 1.0 us, Worst: 530.0 ns, Min Core Frequency: 265 MHz
+                        intensity_unit_ticks = (XS1_TIMER_MHZ * 1000000U) / (frequency_Hz * intensity_steps);
+                    #elif (XTA_TEST_SET_LED_INTENSITY == 1)
+                        // Pass with 14 unknowns, Num Paths: 7, Slack: 250.0 ns, Required: 1.0 us, Worst: 750.0 ns, Min Core Frequency: 375 MHz
+                        const unsigned period_us_ticks = (XS1_TIMER_MHZ * 1000000U) / frequency_Hz; // 1M/f us and * for ticks
+                        intensity_unit_ticks = period_us_ticks / intensity_steps;
+                    #else
+                        #error
+                    #endif
+
+
 
                     intensity_port_activated = intensity;
 
