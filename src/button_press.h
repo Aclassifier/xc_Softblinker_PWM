@@ -12,7 +12,7 @@ typedef enum {
     BUTTON_ACTION_VOID,
     BUTTON_ACTION_PRESSED,
     BUTTON_ACTION_PRESSED_FOR_LONG, // BUTTON_ACTION_PRESSED_FOR_LONG_TIMEOUT_MS
-    BUTTON_ACTION_RELEASED               // Not after BUTTON_ACTION_PRESSED_FOR_LONG
+    BUTTON_ACTION_RELEASED          // Not after BUTTON_ACTION_PRESSED_FOR_LONG
 } button_action_t;
 
 typedef interface button_if {
@@ -24,7 +24,7 @@ typedef interface button_if {
 
 } button_if;
 
-#define BUTTON_ACTION_PRESSED_FOR_LONG_TIMEOUT_MS 20000 // 20 seconds. Max 2exp31 = 2147483648 = 21.47483648 seconds (not one less)
+#define BUTTON_ACTION_PRESSED_FOR_LONG_TIMEOUT_MS 4000 // 20 seconds. Max 2exp31 = 2147483648 = 21.47483648 seconds (not one less)
 
 #define IOF_BUTTON_LEFT   0
 #define IOF_BUTTON_CENTER 1

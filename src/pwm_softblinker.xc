@@ -31,129 +31,17 @@
 
 #define INC_ONE_UP     1
 #define DEC_ONE_DOWN (-1)
+#define PERIOD_MS_TO_ONE_STEP_TICKS(period,steps,value) do {value=(period*XS1_TIMER_KHZ)/(steps*2); } while (0)
+
+unsigned
+period_ms_to_one_step_ticks (
+        const unsigned          period_ms,
+        const intensity_steps_e intensity_steps) {
+
+    return (period_ms * XS1_TIMER_KHZ) / (intensity_steps * 2);
+}
 
 #if (CONFIG_NUM_TASKS_PER_LED==2)
-
-    [[combinable]]
-    void softblinker_task_ok (
-            const unsigned        id_task, // For printing only
-            client pwm_if         if_pwm,
-            server softblinker_if if_softblinker,
-            out buffered port:1   out_port_toggle_on_direction_change)   // Toggle when LED max
-    {
-        debug_print ("%u softblinker_task started\n", id_task);
-
-        // --- softblinker_context_t for softblinker_pwm_for_LED_task
-        timer            tmr;
-        time32_t         timeout;
-        bool             pwm_running;
-        unsigned         pwm_one_percent_ticks;
-        signed           now_percentage;
-        percentage_t     max_percentage;
-        percentage_t     min_percentage;
-        signed           inc_percentage;
-        transition_pwm_e transition_pwm;
-        bool             port_toggle_on_direction_change = false;
-        // ---
-
-        pwm_running           = false;
-        pwm_one_percent_ticks = SOFTBLINK_DEFAULT_PERIOD_MS * XS1_TIMER_KHZ;
-        now_percentage        = SOFTBLINK_DEFAULT_MAX_PERCENTAGE; // [-1..101]
-        max_percentage        = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
-        min_percentage        = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
-        inc_percentage        = DEC_ONE_DOWN;
-        transition_pwm        = slide_transition_pwm;
-
-        tmr :> timeout;
-        timeout += pwm_one_percent_ticks;
-
-        while (1) {
-            select {
-                case (pwm_running) => tmr when timerafter(timeout) :> void: {
-                    bool min_set;
-                    bool max_set;
-
-                    timeout += pwm_one_percent_ticks;
-
-                    // [ 0..9]:  0,1,2,3,4,5,6,7,8, 9
-                    // [10..1]: 10,9,8,7,6,5,4,3,2, 1
-                    now_percentage += inc_percentage; // [0..100] but [-1..101] possible if 0 or 100 was just set in set_LED_intensity
-                    // [1..10]:  1,2,3,4,5,6,7,8,9,10,11
-                    // [9.. 0]:  9,8,7,6,5,4,3,2,1, 0,
-
-                    {now_percentage, min_set, max_set} =
-                            in_range_signed_min_max_set (now_percentage, 1+min_percentage, max_percentage); // [0..100] out
-                    // "Sign has to be found experimentally". Ok. THIS makes 200.0 ms specified equal to 200.0 ms period
-
-                    if (             //                                   ##  because in_range_signed_min_max_set does "<" and ">" params
-                        (min_set) or // counted down to (1+min_percentage)-1 =   0 ->   0 out
-                        (max_set)) { // counted up to     (max_percentage)+1 = 101 -> 100 out
-
-                        out_port_toggle_on_direction_change <: port_toggle_on_direction_change; // JUST FOR THE SCOPE. 200ms->5.00Hz
-
-                        port_toggle_on_direction_change = not port_toggle_on_direction_change;
-                        inc_percentage = (-inc_percentage); // Change sign for next timeout to scan in the other direction
-                    } else {
-                        if_pwm.set_LED_intensity ((percentage_t) now_percentage, transition_pwm); // [0..100]
-                    }
-
-                } break;
-
-                case if_softblinker.set_LED_intensity_range (const percentage_t min_percentage_, const percentage_t max_percentage_): {
-
-                    min_percentage = (percentage_t) in_range_signed ((signed) min_percentage_, SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MAX_PERCENTAGE);
-                    max_percentage = (percentage_t) in_range_signed ((signed) max_percentage_, SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MAX_PERCENTAGE);
-                    //
-                    //     min_percentage   0 here and min_percentage may be decremented to  -1 in timerafter (*)
-                    //     max_percentage 100 here and max_percentage may be incremented to 101 in timerafter (*)
-                    // (*) Conflict with jumping above or below present range resolved with in_range_signed_min_max_set in timerafter
-
-                    // Printing disturbs 1ms update messages above, so will appear to "blink"
-                    debug_print ("%u set_LED_intensity %u %u\n", id_task, min_percentage, max_percentage);
-
-                    if (max_percentage == min_percentage) { // No change of intensity
-                        pwm_running = false;
-                        if_pwm.set_LED_intensity (max_percentage, transition_pwm);
-                    } else if (not pwm_running) {
-                        pwm_running = true;
-                        tmr :> timeout; // immediate timeout
-                    } else { // pwm_running already
-                        // No code
-                        // Don't disturb running timerafter
-                    }
-                } break;
-
-                case if_softblinker.set_LED_period_linear_ms (
-                        const unsigned         period_ms_,
-                        const start_LED_at_e   start_LED_at,
-                        const transition_pwm_e transition_pwm_): {
-
-                    // It seems like linear is ok for softblinking of a LED, ie. "softblink" is soft
-                    // I have not tried any other, like sine. I would assume it would feel like dark_LED longer
-
-                    unsigned period_ms = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
-
-                    // Printing disturbs 1ms update messages above, so will appear to "blink"
-                    debug_print ("%u set_LED_period_linear_ms %u\n", id_task, period_ms);
-
-                    unsigned pwm_one_percent_ticks_ = ((period_ms/SOFTBLINK_PERIOD_MIN_MS) * XS1_TIMER_KHZ);
-
-                    if (start_LED_at == dark_LED) {
-                        now_percentage = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
-                    } else if (start_LED_at == full_LED) {
-                        now_percentage = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
-                    } else {
-                        // continuous_LED, no code
-                    }
-
-                    pwm_one_percent_ticks = pwm_one_percent_ticks_;
-                    transition_pwm = transition_pwm_;
-
-                } break;
-            }
-        }
-    }
-
 
     [[combinable]]
     void softblinker_task (
@@ -165,72 +53,81 @@
         debug_print ("%u softblinker_task started\n", id_task);
 
         // --- softblinker_context_t for softblinker_pwm_for_LED_task
-        timer            tmr;
-        time32_t         timeout;
-        bool             auto_next_intensity_running;
-        unsigned         pwm_one_percent_ticks;
-        signed           now_percentage;
-        percentage_t     max_percentage;
-        percentage_t     min_percentage;
-        signed           inc_percentage;
-        transition_pwm_e transition_pwm;
+        timer             tmr;
+        time32_t          timeout;
+        bool              do_next_intensity_at_intervals;
+        unsigned          one_step_at_intervals_ticks;
+        signed            now_intensity;
+        intensity_t       max_intensity;
+        intensity_t       min_intensity;
+        signed            inc_steps;
+        transition_pwm_e  transition_pwm;
+        intensity_steps_e intensity_steps;
         // ---
 
-        auto_next_intensity_running = false;
-        pwm_one_percent_ticks       = SOFTBLINK_DEFAULT_PERIOD_MS * XS1_TIMER_KHZ;
-        now_percentage              = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
-        max_percentage              = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
-        min_percentage              = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
-        inc_percentage              = DEC_ONE_DOWN;
-        transition_pwm              = slide_transition_pwm;
+        do_next_intensity_at_intervals = false;
+        now_intensity                  = DEFAULT_FULL_INTENSITY;
+        max_intensity                  = DEFAULT_FULL_INTENSITY;
+        min_intensity                  = DEFAULT_DARK_INTENSITY;
+        inc_steps                      = DEC_ONE_DOWN;
+        transition_pwm                 = slide_transition_pwm;
+        intensity_steps                = DEFAULT_INTENSITY_STEPS;
+
+        one_step_at_intervals_ticks = period_ms_to_one_step_ticks (DEFAULT_SOFTBLINK_PERIOD_MS, intensity_steps);
 
         tmr :> timeout;
-        timeout += pwm_one_percent_ticks;
+        timeout += one_step_at_intervals_ticks;
 
         while (1) {
             select {
-                case (auto_next_intensity_running) => tmr when timerafter(timeout) :> void: {
+                case (do_next_intensity_at_intervals) => tmr when timerafter(timeout) :> void: {
 
-                    timeout += pwm_one_percent_ticks;
-                    // Both min_percentage, now_percentage and max_percentage are set outside this block
+                    timeout += one_step_at_intervals_ticks;
+                    // Both min_intensity, now_intensity and max_intensity are set outside this block
                     // That's why both tests include "above" (>) and "below" (<)
 
-                    if (now_percentage >= max_percentage) {
-                        inc_percentage = DEC_ONE_DOWN;
-                        now_percentage = max_percentage;
+                    if (now_intensity >= max_intensity) {
+                        inc_steps = DEC_ONE_DOWN;
+                        now_intensity = max_intensity;
                         out_port_toggle_on_direction_change <: 0;
-                    } else if (now_percentage <= min_percentage) {
-                        inc_percentage = INC_ONE_UP;
-                        now_percentage = min_percentage;
+                    } else if (now_intensity <= min_intensity) {
+                        inc_steps = INC_ONE_UP;
+                        now_intensity = min_intensity;
                         out_port_toggle_on_direction_change <: 1;
                     } else {}
 
-                    now_percentage += inc_percentage;
+                    now_intensity += inc_steps;
 
-                    // [1..100] [99..0]
+                    // [1..100] [99..0] (Eaxmple for steps_0100)
 
-                    if_pwm.set_LED_intensity ((percentage_t) now_percentage, transition_pwm); // [0..100]
+                    if_pwm.set_LED_intensity (intensity_steps, (intensity_t) now_intensity, transition_pwm);
 
                 } break;
 
-                case if_softblinker.set_LED_intensity_range (const percentage_t min_percentage_, const percentage_t max_percentage_): {
+                case if_softblinker.set_LED_intensity_range (
+                        const intensity_steps_e intensity_steps_,
+                        const intensity_t       min_intensity_,
+                        const intensity_t       max_intensity_): {
 
-                    min_percentage = (percentage_t) in_range_signed ((signed) min_percentage_, SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MAX_PERCENTAGE);
-                    max_percentage = (percentage_t) in_range_signed ((signed) max_percentage_, SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MAX_PERCENTAGE);
+                    intensity_steps = intensity_steps_;
 
-                    if (max_percentage == min_percentage) { // No change of intensity
-                        auto_next_intensity_running = false;
-                        if_pwm.set_LED_intensity (max_percentage, transition_pwm);
-                    } else if (not auto_next_intensity_running) {
-                        auto_next_intensity_running = true;
+                    min_intensity = (intensity_t) in_range_signed ((signed) min_intensity_, DEFAULT_DARK_INTENSITY, intensity_steps);
+                    max_intensity = (intensity_t) in_range_signed ((signed) max_intensity_, DEFAULT_DARK_INTENSITY, intensity_steps);
+
+                    if (max_intensity == min_intensity) { // No change of intensity
+                        do_next_intensity_at_intervals = false;
+                        if_pwm.set_LED_intensity (intensity_steps, max_intensity, transition_pwm);
+                    } else if (not do_next_intensity_at_intervals) {
+                        do_next_intensity_at_intervals = true;
                         tmr :> timeout; // immediate timeout
-                    } else { // auto_next_intensity_running already
+                    } else { // do_next_intensity_at_intervals already
                         // No code
                         // Don't disturb running timerafter
                     }
 
-                    // Printing disturbs 1ms update messages above, so will appear to "blink"
-                    debug_print ("%u set_LED_intensity (%u, %d) min %u now %d max %u \n", id_task, auto_next_intensity_running, inc_percentage, min_percentage, now_percentage, max_percentage);
+                    // Printing disturbs update messages above, so it will appear to "blink"
+                    debug_print ("%u set_LED_intensity steps %u (%u, %d) min %u now %d max %u \n",
+                                 id_task,                    intensity_steps, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
                 } break;
 
                 case if_softblinker.set_LED_period_linear_ms (
@@ -241,23 +138,21 @@
                     // It seems like linear is ok for softblinking of a LED, ie. "softblink" is soft
                     // I have not tried any other, like sine. I would assume it would feel like dark_LED longer
 
-                    unsigned period_ms = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
-
-                    unsigned pwm_one_percent_ticks_ = ((period_ms/SOFTBLINK_PERIOD_MIN_MS) * XS1_TIMER_KHZ);
+                    const unsigned period_ms = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
 
                     if (start_LED_at == dark_LED) {
-                        now_percentage = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
+                        now_intensity = DEFAULT_DARK_INTENSITY;
                     } else if (start_LED_at == full_LED) {
-                        now_percentage = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
+                        now_intensity = intensity_steps;
                     } else {
                         // continuous_LED, no code
                     }
 
-                    pwm_one_percent_ticks = pwm_one_percent_ticks_;
+                    one_step_at_intervals_ticks = period_ms_to_one_step_ticks (period_ms, intensity_steps);
                     transition_pwm = transition_pwm_;
 
-                    // Printing disturbs 1ms update messages above, so will appear to "blink"
-                    debug_print ("%u set_LED_period_linear_ms %u (%u, %d) min %u now %d max %u\n", id_task, period_ms, auto_next_intensity_running, inc_percentage, min_percentage, now_percentage, max_percentage);
+                    // Printing disturbs update messages above, so it will appear to "blink"
+                    debug_print ("%u set_LED_period_linear_ms %u (%u, %d) min %u now %d max %u\n", id_task, period_ms, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
 
                 } break;
             }
@@ -293,25 +188,23 @@ typedef enum {activated, deactivated} port_is_e;
             out buffered port:1 out_port_LED) // LED
     {
         // --- pwm_context_t for softblinker_pwm_for_LED_task
-        timer           tmr;
-        time32_t        timeout;
-        port_pin_sign_e port_pin_sign;
-        unsigned        pwm_one_percent_ticks;
-        time32_t        port_activated_percentage;
-        bool            pwm_running;
-        port_is_e       port_is;
+        timer             tmr;
+        time32_t          timeout;
+        intensity_t       intensity_port_activated; // Normalised to intensity_steps (allways ON when intensity_port_activated == intensity_steps)
+        intensity_t       intensity_unit_ticks;     // Normalised to intensity_steps (so many ticks == one step)
+        intensity_steps_e intensity_steps;
+        port_pin_sign_e   port_pin_sign;
+        port_is_e         port_is;
+        bool              pwm_running;
         // ---
-
-        port_pin_sign = PWM_PORT_PIN_SIGN;
 
         debug_print ("%u pwm_for_LED_task started\n", id_task);
 
-        pwm_one_percent_ticks     = PWM_ONE_PERCENT_TICS;
-        port_activated_percentage = 100;                  // This implies [1], [2] and [3] below
-        pwm_running               = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
-        port_is                   = activated;            // [2] "LED on"
-                                                          //
-        ACTIVATE_PORT(port_pin_sign);                     // [3]
+        port_pin_sign = PWM_PORT_PIN_SIGN;
+        pwm_running   = false;
+        port_is       = activated;
+
+        ACTIVATE_PORT(port_pin_sign);
 
         while (1) {
             // #pragma ordered // May be used if not [[combinable]] to assure priority of the PWM, if that is wanted
@@ -321,33 +214,38 @@ typedef enum {activated, deactivated} port_is_e;
                     if (port_is == deactivated) {
                         #pragma xta endpoint "stop"
                         ACTIVATE_PORT(port_pin_sign);
-                        timeout += (port_activated_percentage * pwm_one_percent_ticks);
+                        timeout += (intensity_port_activated * intensity_unit_ticks);
                         port_is  = activated;
                     } else {
                         DEACTIVATE_PORT(port_pin_sign);
-                        // timeout += (C_minus_port_activated_percentage * pwm_one_percent_ticks); // Slack 780 ns, worst 220 ns
-                        // "loading" the same variable port_activated_percentage twice in the loop, even if one does an arithmetic
-                        // operation, is faster by 30 ns than introducing a separate pre-calculated 100-value! Thanks, XTA!
-                        // See commit id c8a5283 (13Jul2020)
-                        // But observe that the set_LED_intensity may also delay the "start" loop
-                        timeout += ((100 - port_activated_percentage) * pwm_one_percent_ticks);
-
+                        timeout += ((intensity_steps - intensity_port_activated) * intensity_unit_ticks);
                         port_is  = deactivated;;
                     }
                 } break;
 
-                case if_pwm.set_LED_intensity (const percentage_t percentage, const transition_pwm_e transition_pwm) : {
+                case if_pwm.set_LED_intensity (
+                        // const unsigned          frequency_Hz,
+                        const intensity_steps_e intensity_steps_,
+                        const intensity_t       intensity, // Normalised to intensity_steps (allways ON when intensity == intensity_steps_)
+                        const transition_pwm_e  transition_pwm) : {
 
-                    port_activated_percentage = percentage;
+                    //const period_us = 1000000 / frequency_Hz;
+
+
+                    intensity_steps = intensity_steps_;
+
+                    intensity_unit_ticks = (PWM_ALWAYS_ON_US * XS1_TIMER_MHZ) / intensity_steps;
+
+                    intensity_port_activated = intensity;
 
                     if (transition_pwm == slide_transition_pwm) {
                         pwm_running = true;
                     }
                     else  // else lock_transition_pwm
-                    if (port_activated_percentage == 100) { // No need to involve any timerafter and get a short "off" blip
+                    if (intensity_port_activated == intensity_steps) { // No need to involve any timerafter and get a short "off" blip
                         pwm_running = false;
                         ACTIVATE_PORT(port_pin_sign);
-                    } else if (port_activated_percentage == 0) { // No need to involve any timerafter and get a short "on" blink
+                    } else if (intensity_port_activated == DEFAULT_DARK_INTENSITY) { // No need to involve any timerafter and get a short "on" blink
                         pwm_running = false;
                         DEACTIVATE_PORT(port_pin_sign);
                     } else if (not pwm_running) {
@@ -355,7 +253,7 @@ typedef enum {activated, deactivated} port_is_e;
                         tmr :> timeout; // immediate timeout
                     } else { // pwm_running already
                         // No code
-                        // Don't disturb running timerafter, just let it use the new port_activated_percentage when it gets there
+                        // Don't disturb running timerafter, just let it use the new intensity_port_activated when it gets there
                     }
                 } break;
             }
@@ -368,8 +266,8 @@ typedef struct pwm_context_t {
     timer           tmr;
     time32_t        timeout;
     port_pin_sign_e port_pin_sign;
-    unsigned        pwm_one_percent_ticks;
-    time32_t        port_activated_percentage;
+    unsigned        intensity_unit_ticks;
+    time32_t        intensity_port_activated;
     bool            pwm_running;
     port_is_e       port_is;
 } pwm_context_t;
@@ -377,12 +275,12 @@ typedef struct pwm_context_t {
 typedef struct softblinker_context_t {
     timer        tmr;
     time32_t     timeout;
-    bool         auto_next_intensity_running;
-    unsigned     pwm_one_percent_ticks;
-    signed       now_percentage;
-    percentage_t max_percentage;
-    percentage_t min_percentage;
-    signed       inc_percentage;
+    bool         do_next_intensity_at_intervals;
+    unsigned     one_step_at_intervals_ticks;
+    signed       now_intensity;
+    intensity_t  max_intensity;
+    intensity_t  min_intensity;
+    signed       inc_steps;
 } softblinker_context_t;
 
 
@@ -391,14 +289,14 @@ typedef struct softblinker_context_t {
     void set_LED_intensity (
             pwm_context_t       &pwm_context,
             out buffered port:1 out_port_LED,
-            const percentage_t  percentage)
+            const intensity_t   intensity)
     {
-        pwm_context.port_activated_percentage = percentage;
+        pwm_context.intensity_port_activated = intensity;
 
-        if (pwm_context.port_activated_percentage == 100) { // No need to involve any timerafter and get a short off blip
+        if (pwm_context.intensity_port_activated == 100) { // No need to involve any timerafter and get a short off blip
             pwm_context.pwm_running = false;
             ACTIVATE_PORT(pwm_context.port_pin_sign);
-        } else if (pwm_context.port_activated_percentage == 0) { // No need to involve any timerafter and get a short on blink
+        } else if (pwm_context.intensity_port_activated == 0) { // No need to involve any timerafter and get a short on blink
             pwm_context.pwm_running = false;
             DEACTIVATE_PORT(pwm_context.port_pin_sign);
         } else if (not pwm_context.pwm_running) {
@@ -406,7 +304,7 @@ typedef struct softblinker_context_t {
             pwm_context.tmr :> pwm_context.timeout; // immediate timeout
         } else { // pwm_running already
             // No code
-            // Don't disturb running timerafter, just let it use the new port_activated_percentage when it gets there
+            // Don't disturb running timerafter, just let it use the new intensity_port_activated when it gets there
         }
     }
 
@@ -422,101 +320,6 @@ typedef struct softblinker_context_t {
         pwm_context_t         pwm_context;
         softblinker_context_t softblinker_context;
 
-        softblinker_context.auto_next_intensity_running = false;
-        softblinker_context.pwm_one_percent_ticks       = SOFTBLINK_DEFAULT_PERIOD_MS * XS1_TIMER_KHZ;
-        softblinker_context.now_percentage              = SOFTBLINK_DEFAULT_MAX_PERCENTAGE; // [-1..101]
-        softblinker_context.max_percentage              = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
-        softblinker_context.min_percentage              = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
-        softblinker_context.inc_percentage              = (-1); // [-1,+1]
-
-        pwm_context.port_pin_sign               = PWM_PORT_PIN_SIGN;
-        pwm_context.pwm_one_percent_ticks       = PWM_ONE_PERCENT_TICS; // 10 uS. So 99% means 990 us activated and 10 us deactivated
-        pwm_context.port_activated_percentage   = 100;                  // This implies [1], [2] and [3] below
-        pwm_context.auto_next_intensity_running = false;                // [1] no timerafter (doing_pwn when not 0% or not 100%)
-        pwm_context.port_is                     = activated;            // [2] "LED on"
-                                                                      //
-        ACTIVATE_PORT(pwm_context.port_pin_sign);                     // [3]
-
-        softblinker_context.tmr :> softblinker_context.timeout;
-        softblinker_context.timeout += softblinker_context.pwm_one_percent_ticks;
-
-        while (1) {
-            // #pragma ordered // May be used if not [[combinable]] to assure priority of the PWM, if that is needed
-            #pragma xta endpoint "start"
-            select {
-                case (pwm_context.auto_next_intensity_running) => pwm_context.tmr when timerafter(pwm_context.timeout) :> void: {
-                    if (pwm_context.port_is == deactivated) {
-                        #pragma xta endpoint "stop"
-                        ACTIVATE_PORT(pwm_context.port_pin_sign);
-                        pwm_context.timeout += (pwm_context.port_activated_percentage * pwm_context.pwm_one_percent_ticks);
-                        pwm_context.port_is  = activated;
-                    } else {
-                        DEACTIVATE_PORT(pwm_context.port_pin_sign);
-                        pwm_context.timeout += ((100 - pwm_context.port_activated_percentage) * pwm_context.pwm_one_percent_ticks);
-                        pwm_context.port_is  = deactivated;;
-                    }
-                } break;
-
-                case (softblinker_context.auto_next_intensity_running) => softblinker_context.tmr when timerafter(softblinker_context.timeout) :> void: {
-                    bool min_set;
-                    bool max_set;
-
-                    softblinker_context.timeout += softblinker_context.pwm_one_percent_ticks;
-
-                    softblinker_context.now_percentage += softblinker_context.inc_percentage; // [0..100] but [-1..101] possible if 0 or 100 was just set in set_LED_intensity
-                    {softblinker_context.now_percentage, min_set, max_set} =
-                            in_range_signed_min_max_set (softblinker_context.now_percentage, softblinker_context.min_percentage, softblinker_context.max_percentage); // [0..100]
-
-                    if ((min_set) or (max_set)) { // Send 100 and 0 only once
-                        softblinker_context.inc_percentage = (-softblinker_context.inc_percentage); // Change sign for next timeout to scan in the other direction
-                    } else {
-                        set_LED_intensity (pwm_context, out_port_LED, (percentage_t) softblinker_context.now_percentage); // [0..100]
-                    }
-
-                } break;
-
-                case if_softblinker.set_LED_intensity_range (const percentage_t min_percentage_, const percentage_t max_percentage_): {
-
-                    // Printing disturbs 1ms update messages above, so will appear to "blink"
-                    debug_print ("%u set_LED_intensity %u %u\n", id_task, min_percentage_, max_percentage_);
-
-                    softblinker_context.min_percentage = (percentage_t) in_range_signed ((signed) min_percentage_, SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MAX_PERCENTAGE);
-                    softblinker_context.max_percentage = (percentage_t) in_range_signed ((signed) max_percentage_, SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MAX_PERCENTAGE);
-
-                    if (softblinker_context.max_percentage == softblinker_context.min_percentage) { // No change of intensity
-                        softblinker_context.auto_next_intensity_running = false;
-                        set_LED_intensity (pwm_context, out_port_LED, softblinker_context.max_percentage);
-                        // No code, timerafter will do it
-                    } else if (not softblinker_context.auto_next_intensity_running) {
-                        softblinker_context.auto_next_intensity_running = true;
-                        softblinker_context.tmr :> softblinker_context.timeout; // immediate timeout
-                    } else { // auto_next_intensity_running already
-                        // No code
-                        // Don't disturb running timerafter
-                    }
-                } break;
-
-                case if_softblinker.set_LED_period_linear_ms (const unsigned period_ms_, const start_LED_at_e start_LED_at): {
-
-                    unsigned period_ms = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
-
-                    // Printing disturbs 1ms update messages above, so will appear to "blink"
-                    debug_print ("%u set_LED_period_linear_ms %u\n", id_task, period_ms);
-
-                    unsigned pwm_one_percent_ticks_ = ((period_ms/SOFTBLINK_PERIOD_MIN_MS) * XS1_TIMER_KHZ);
-
-                    if (start_LED_at == dark_LED) {
-                        softblinker_context.now_percentage = SOFTBLINK_DEFAULT_MIN_PERCENTAGE;
-                    } else if (start_LED_at == full_LED) {
-                        softblinker_context.now_percentage = SOFTBLINK_DEFAULT_MAX_PERCENTAGE;
-                    } else {
-                        // continuous_LED, no code
-                    }
-
-                    softblinker_context.pwm_one_percent_ticks = pwm_one_percent_ticks_;
-                } break;
-            }
-        }
     }
 #endif // CONFIG_NUM_TASKS_PER_LED
 

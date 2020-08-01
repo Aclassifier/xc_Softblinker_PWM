@@ -16,24 +16,16 @@
         #define LED_START_DARK_DARK {full_LED} // --"--
     #endif
 
-    // First param minimum is SOFTBLINK_PERIOD_MIN_MS
-
-     #define MINPRO   0
-     #define MAXPRO 100
-
+    // ------------------------------------
+    // CRITICAL LAYOUT: must match params_t
+    // ------------------------------------
     #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-        #define PARAMS_PERIODMS_MINPRO_MAXPRO {1000,MINPRO,MAXPRO}}                     // period_ms, min_percentage, max_percentage
+        #define PARAMS_DEFAULTS { \
+               {DEFAULT_SOFTBLINK_PERIOD_MS, DEFAULT_INTENSITY_STEPS, DEFAULT_DARK_INTENSITY, DEFAULT_FULL_INTENSITY}}
     #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-        #define PARAMS_PERIODMS_MINPRO_MAXPRO {{200,MINPRO,MAXPRO},{200,MINPRO,MAXPRO}} // period_ms, min_percentage, max_percentage times CONFIG_NUM_SOFTBLIKER_LEDS
-        //                                      200                                     // 5 blinks per second
-        //                                          0,     15           0,     10 not visible when light room, 0,15 barely visible, 0,20 quite visible
-        // {{1000,0,100},{1000,0,100}} 2.4us 0044.png init
-        // {{ 800,0,100},{ 800,0,100}} 2.4us same
-        // {{ 600,0,100},{ 600,0,100}} 2.4us same
-        // {{ 600,0,100},{ 600,0,100}} 2.4us same
-        // {{ 400,0,100},{ 400,0,100}} 2.4us same
-        // {{ 200,0,100},{ 200,0,100}} 2.4us same
-        // After right button up up and to 200 again then center to synschronize, back to 2.4us
+        #define PARAMS_DEFAULTS { \
+               {DEFAULT_SOFTBLINK_PERIOD_MS, DEFAULT_INTENSITY_STEPS, DEFAULT_DARK_INTENSITY, DEFAULT_FULL_INTENSITY}, \
+               {DEFAULT_SOFTBLINK_PERIOD_MS, DEFAULT_INTENSITY_STEPS, DEFAULT_DARK_INTENSITY, DEFAULT_FULL_INTENSITY}}
     #endif
 
     #define IOF_YELLOW_LED 0 // To CONFIG_NUM_SOFTBLIKER_LEDS

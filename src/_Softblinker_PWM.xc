@@ -32,11 +32,19 @@
 
 #define NUM_TIMEOUTS_PER_SECOND 2
 
+typedef enum {
+    IN_PHASE,
+    OUT_OF_PHASE
+} LED_phase_e;
+
 typedef struct params_t {
-    unsigned     period_ms;
-    percentage_t min_percentage;
-    percentage_t max_percentage;
-    percentage_t now_percentage; // PWM=005 flickering is because 100 intensity levels are not enough!
+    // -------------------------------------------
+    // CRITICAL LAYOUT: must match PARAMS_DEFAULTS
+    // -------------------------------------------
+    unsigned          period_ms;
+    intensity_steps_e intensity_steps;
+    intensity_t       min_intensity;
+    intensity_t       max_intensity;
 } params_t;
 
 
@@ -45,33 +53,45 @@ void softblinker_pwm_button_client_task (
         server button_if      i_buttons_in[BUTTONS_NUM_CLIENTS],
         client softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS])
 {
-    timer            tmr;
-    time32_t         time_ticks; // Ticks to 100 in 1 us
-    button_action_t  buttons_action [BUTTONS_NUM_CLIENTS];
-    params_t         params         [CONFIG_NUM_SOFTBLIKER_LEDS];
-    start_LED_at_e   start_LED_at   [CONFIG_NUM_SOFTBLIKER_LEDS];
-    bool             toggle_LED_phase                   = false;
-    transition_pwm_e transition_pwm                     = lock_transition_pwm;
-    bool             a_side_button_pressed_while_center = false; // PWM=004 new
-    bool             write_LEDs_intensity_and_period    = false; // PWM=004 new
+    timer                 tmr;
+    time32_t              time_ticks; // Ticks to 100 in 1 us
+    button_action_t       buttons_action [BUTTONS_NUM_CLIENTS];
+    params_t              params         [CONFIG_NUM_SOFTBLIKER_LEDS];
+    start_LED_at_e        start_LED_at   [CONFIG_NUM_SOFTBLIKER_LEDS];
+    LED_phase_e           LED_phase                          = IN_PHASE;
+    transition_pwm_e      transition_pwm                     = lock_transition_pwm;
+    bool                  a_side_button_pressed_while_center = false;
+    bool                  write_LEDs_intensity_and_period    = false;
+    unsigned              iOf_intensity_steps_list_red_led   = 0; // First, pointing to steps_0010
+
+    const intensity_steps_e intensity_steps_list [NUM_INTENSITY_STEPS] = INTENSITY_STEPS_LIST;
 
     for (unsigned ix = 0; ix < BUTTONS_NUM_CLIENTS; ix++) {
         buttons_action[ix] = BUTTON_ACTION_VOID;
     }
 
     {
-        params_t const params_now [CONFIG_NUM_SOFTBLIKER_LEDS] = PARAMS_PERIODMS_MINPRO_MAXPRO; // {{200,0,100},{6000,0,100}}
+        params_t const params_now [CONFIG_NUM_SOFTBLIKER_LEDS] = PARAMS_DEFAULTS;
 
         for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
             // Set them
-            params[ix].period_ms      = params_now[ix].period_ms;
-            params[ix].min_percentage = params_now[ix].min_percentage;
-            params[ix].max_percentage = params_now[ix].max_percentage;
-            params[ix].now_percentage = params_now[ix].min_percentage;
-            start_LED_at[ix]          = dark_LED;
-            // And use them
-            if_softblinker[ix].set_LED_period_linear_ms       (params[ix].period_ms, start_LED_at[ix], transition_pwm);
-            if_softblinker[ix].set_LED_intensity_range (params[ix].min_percentage, params[ix].max_percentage);
+            params[ix].period_ms       = params_now[ix].period_ms;
+            params[ix].intensity_steps = params_now[ix].intensity_steps;
+            params[ix].min_intensity   = params_now[ix].min_intensity;
+            params[ix].max_intensity   = params_now[ix].max_intensity;
+
+            start_LED_at[ix] = dark_LED;
+
+            if_softblinker[ix].set_LED_intensity_range (
+                    params[ix].intensity_steps,
+                    params[ix].min_intensity,
+                    params[ix].max_intensity);
+
+            if_softblinker[ix].set_LED_period_linear_ms (
+                    params[ix].period_ms,
+                    start_LED_at[ix],
+                    transition_pwm);
+
             // Back to normal
             start_LED_at[ix] = continuous_LED;
         }
@@ -84,7 +104,7 @@ void softblinker_pwm_button_client_task (
             //
             case tmr when timerafter (time_ticks) :> void : {
                 time_ticks += (XS1_TIMER_HZ/NUM_TIMEOUTS_PER_SECOND);
-                // ...
+                // No code (yet?)
             } break; // timerafter
 
             // BUTTON PRESSES
@@ -93,13 +113,22 @@ void softblinker_pwm_button_client_task (
 
                 buttons_action[iof_button] = button_action;
 
-                debug_print ("BUTTON [%u]=%u -> ", iof_button, button_action);
+                debug_print ("\nBUTTON [%u]=%u\n", iof_button, button_action);
 
-                const bool pressed_now      = (button_action == BUTTON_ACTION_PRESSED);  // 1
+                const bool pressed_now      = (button_action == BUTTON_ACTION_PRESSED);          // 1
                 const bool pressed_for_long = (button_action == BUTTON_ACTION_PRESSED_FOR_LONG); // 2
-                const bool released_now     = (button_action == BUTTON_ACTION_RELEASED); // 2
+                const bool released_now     = (button_action == BUTTON_ACTION_RELEASED);         // 3 Not after BUTTON_ACTION_PRESSED_FOR_LONG
 
-                if (released_now) {
+                if (pressed_for_long) {
+
+                    if (iof_button == IOF_BUTTON_CENTER) { // IOF_RED_LED:
+                        params[IOF_RED_LED].intensity_steps = intensity_steps_list[iOf_intensity_steps_list_red_led];
+                        iOf_intensity_steps_list_red_led = (iOf_intensity_steps_list_red_led + 1) % NUM_INTENSITY_STEPS; // For next time
+                        write_LEDs_intensity_and_period = true;
+                    } else {}
+
+                } else if (released_now) {
+
                     if (iof_button == IOF_BUTTON_CENTER) {
                         if (a_side_button_pressed_while_center) {
                             a_side_button_pressed_while_center = false;
@@ -117,46 +146,7 @@ void softblinker_pwm_button_client_task (
                     switch (iof_button) {
                         case IOF_BUTTON_LEFT: {
                             iof_LED = IOF_YELLOW_LED;
-                            if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
-                                a_side_button_pressed_while_center = true;
-                            } else /* if (params[iof_LED].period_ms < 1000) */ {
-                                //params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
 
-                                // PWM=005 flickering is because 100 intensity levels are not enough!
-                                params[iof_LED].now_percentage++;
-                                params[iof_LED].min_percentage = params[iof_LED].now_percentage;
-                                params[iof_LED].max_percentage = params[iof_LED].now_percentage;
-
-                            } //else {
-                                // params[iof_LED].period_ms += 2000;
-                            //}
-                            button_taken = true;
-                        } break;
-
-                        case IOF_BUTTON_CENTER: {
-                            if (toggle_LED_phase) {
-                                const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_FULL; // This and..
-                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                    start_LED_at[ix] = start_LED_at_now[ix];
-                                }
-                                transition_pwm = slide_transition_pwm; // LEDs out of phase, and sliding PWM: ok combination
-                            } else {
-                                const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_DARK; // .. this are "180 degrees" out of phase
-                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                    start_LED_at[ix] = start_LED_at_now[ix];
-                                }
-                                transition_pwm = lock_transition_pwm; // LEDs in phase and locked PWM: also ok combination
-                            }
-                            toggle_LED_phase = not toggle_LED_phase;
-
-                            // Nice acknowledgement of pressed (and hold) center button
-                            for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                if_softblinker[ix].set_LED_intensity_range (SOFTBLINK_DEFAULT_MIN_PERCENTAGE, SOFTBLINK_DEFAULT_MIN_PERCENTAGE); // OFF!
-                            }
-                        } break;
-
-                        case IOF_BUTTON_RIGHT: {
-                            iof_LED = IOF_RED_LED;
                             if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
                                 a_side_button_pressed_while_center = true;
                             } else if (params[iof_LED].period_ms < 1000) {
@@ -164,6 +154,45 @@ void softblinker_pwm_button_client_task (
                             } else {
                                 params[iof_LED].period_ms += 2000;
                             }
+
+                            button_taken = true;
+
+                            // Reset from pressed_for_long IOF_BUTTON_RIGHT @ IOF_RED_LED
+                            //
+                            params[IOF_RED_LED].intensity_steps = DEFAULT_INTENSITY_STEPS;
+                            iOf_intensity_steps_list_red_led = 0; // First, pointing to steps_0010
+                        } break;
+
+                        case IOF_BUTTON_CENTER: {
+                            if (LED_phase == OUT_OF_PHASE) {
+                                const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_FULL; // This and..
+                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                    start_LED_at[ix] = start_LED_at_now[ix];
+                                }
+                                transition_pwm = slide_transition_pwm; // LEDs out of phase, and sliding PWM: ok combination
+                                LED_phase = IN_PHASE;
+                            } else if (LED_phase == IN_PHASE) {
+                                const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_DARK; // .. this are "180 degrees" out of phase
+                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                    start_LED_at[ix] = start_LED_at_now[ix];
+                                }
+                                transition_pwm = lock_transition_pwm; // LEDs in phase and locked PWM: also ok combination
+                                LED_phase = OUT_OF_PHASE;
+                            } else {}
+
+                        } break;
+
+                        case IOF_BUTTON_RIGHT: {
+                            iof_LED = IOF_RED_LED;
+
+                            if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
+                                a_side_button_pressed_while_center = true;
+                            } else if (params[iof_LED].period_ms < 1000) {
+                                params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
+                            } else {
+                                params[iof_LED].period_ms += 2000;
+                            }
+
                             button_taken = true;
                         } break;
 
@@ -209,11 +238,16 @@ void softblinker_pwm_button_client_task (
 
                 if (write_LEDs_intensity_and_period) {
                     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                        // Needed since I use SOFTBLINK_DEFAULT_MIN_PERCENTAGE above
-                        if_softblinker[ix].set_LED_intensity_range (params[ix].min_percentage, params[ix].max_percentage);
+                        if_softblinker[ix].set_LED_intensity_range (
+                                params[ix].intensity_steps,
+                                params[ix].min_intensity,
+                                params[ix].max_intensity);
                     }
                     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                        if_softblinker[ix].set_LED_period_linear_ms (params[ix].period_ms, start_LED_at[ix], transition_pwm);
+                        if_softblinker[ix].set_LED_period_linear_ms (
+                                params[ix].period_ms,
+                                start_LED_at[ix],
+                                transition_pwm);
                         //
                         start_LED_at[ix] = continuous_LED;
                     }

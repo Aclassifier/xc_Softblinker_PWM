@@ -8,7 +8,28 @@
 #ifndef PWM_SOFTBLINKER_H_
     #define PWM_SOFTBLINKER_H_
 
-    typedef unsigned                                  percentage_t; // [0..100]
+    #define NUM_INTENSITY_STEPS 5
+    typedef enum { // ZEROES NOT COUNTED:
+        steps_0010 =   10,
+        steps_0100 =  100,
+        steps_0255 =  255, // (*)
+        steps_0500 =  500,
+        steps_1000 = 1000
+        // NUM_INTENSITY_STEPS (see above)
+    } intensity_steps_e;
+
+    // (*) Like 8-bit grayscale intensity or 8-bit for each of RGB for 24-bit pixels, or 8-bit alpha-channel transparence
+    //     Even if a PWM "intensity" is not a continous current but pulse-width modulation
+
+    #define INTENSITY_STEPS_LIST {steps_0010, steps_0100, steps_0255, steps_0500, steps_1000}
+
+    #define DEFAULT_INTENSITY_STEPS     steps_1000
+    #define DEFAULT_DARK_INTENSITY      0
+    #define DEFAULT_FULL_INTENSITY      DEFAULT_INTENSITY_STEPS
+    #define DEFAULT_SOFTBLINK_PERIOD_MS 200 // 5 blinks per second
+
+    typedef unsigned intensity_t; // [DEFAULT_DARK_INTENSITY..intensity_steps_e]
+
     typedef enum {scan_none, scan_continuous}         scan_type_e;
     typedef enum {active_high, active_low}            port_pin_sign_e; // Must be {0,1} like this! Use of XOR is dependent on it!
     typedef enum {continuous_LED, dark_LED, full_LED} start_LED_at_e;
@@ -18,37 +39,19 @@
         lock_transition_pwm   // PWM pulses are locked --"--
     } transition_pwm_e;
 
-                                           // PWM=005 flickering is because 100 intensity levels are not enough!
-    #define SOFTBLINK_DEFAULT_PERIOD_MS 30 // 30 ms goes to 100 in 3.0 seconds, when this is the timing. 10 makes no difference
-                                           // ##
-    #define PWM_ONE_PERCENT_US 100         // 30  100 ->  10 pulses per 0_TO_100 ( 10 NEW percentage steps): flickers at low intensity. Not nice
-                                           // 30   50  -> 20 pulses per 0-TO_100 ( 20 NEW percentage steps): flickers som at low intensity. Borderline
-                                           // 30   25  -> 40 pulses per 0-TO_100 ( 40 NEW percentage steps): flickers som at low intensity. Better
-                                           // 30   10 -> 100 pulses per 0_TO_100 (100 NEW percentage steps): no flickering at low intensity. OK
+    #define SOFTBLINK_DEFAULT_PERIOD_MS 3 // So with steps_1000 it would take 3 seconds DARK_TO_FULL
 
-    #define SOFTBLINK_DEFAULT_MIN_PERCENTAGE   0
-    #define SOFTBLINK_DEFAULT_MAX_PERCENTAGE 100
+    #define PWM_ALWAYS_ON_US 1000 // When intensity_steps_e has been reached
 
-    #define PWM_ONE_PERCENT_TICS \
-       (PWM_ONE_PERCENT_US * XS1_TIMER_MHZ) // 100 us 1% on is a pulse of 100 us every 10 ms 100 Hz
-    // ####
-    // #### AMUX=002 analysis:
-    // #### Observe that the number of timeouts ....... _DOES_ .. depend on this value (but the XCORE is "made for" this)
-    // 1000 us 1% on is a pulse of   1 ms every 100 ms  10  Hz shows on/off that's going between the two percentages, softblink is completely gone
-    //  500 us 1% on is a pulse of 500 us every  50 ms  20  Hz shows visible blink when I move the box or my head,    softblink is gone
-    //  300 us 1% on is a pulse of 300 us every  30 ms  33  Hz shows visible blink when I move the box or my head,    fair softblink
-    //  200 us 1% on is a pulse of 200 us every  20 ms  50  Hz works fine, no blinking, some effect when box moves,   ok softblink
-    //  100 us 1% on is a pulse of 100 us every  10 ms 100  Hz works fine, no blinking,                               perfect softblink
-    //   10 us 1% on is a pulse of  10 us every  1 ms    1 kHz works fine, no blinking,                               perfect softblink
-
-    #define SOFTBLINK_PERIOD_MIN_MS   200 //   200 ms (5 blinks per second (100% up and 100% down in 1ms resolution))
-    #define SOFTBLINK_PERIOD_MAX_MS 10000 // 10000 ms
+    #define SOFTBLINK_PERIOD_MIN_MS   200 // TODO replace with dark_LED  200 ms (5 blinks per second (100% up and 100% down in 1ms resolution))
+    #define SOFTBLINK_PERIOD_MAX_MS 10000 // TODO replace with full_LED 10000 ms
 
     typedef interface softblinker_if {
-        //  FULLY
-        void set_LED_intensity_range (              // ON  OFF (opposite if port_pin_sign_e set opposite)
-                const percentage_t min_percentage,  // 100   0     [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
-                const percentage_t max_percentage); // 100   0     [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
+
+        void set_LED_intensity_range (
+                const intensity_steps_e intensity_steps,
+                const intensity_t       min_intensity,
+                const intensity_t       max_intensity);
 
         void set_LED_period_linear_ms (
                 const unsigned         period_ms, // [SOFTBLINK_PERIOD_MIN_MS..SOFTBLINK_PERIOD_MAX_MS] between two max or two min
@@ -66,7 +69,11 @@
     #define SET_LED_INTENSITY_CONTINUOUS_MODE 0
 
     typedef interface pwm_if {
-        void set_LED_intensity (const percentage_t percentage, const transition_pwm_e transition_pwm); // [0..100] = [SOFTBLINK_DEFAULT_MIN_PERCENTAGE..SOFTBLINK_DEFAULT_MAX_PERCENTAGE]
+
+        void set_LED_intensity (
+                const intensity_steps_e intensity_steps,
+                const intensity_t       intensity, // Normalised to intensity_steps (allways ON when intensity == intensity_steps)
+                const transition_pwm_e  transition_pwm);
     } pwm_if;
 
     #if (CONFIG_NUM_TASKS_PER_LED==2)
