@@ -107,24 +107,34 @@ period_ms_to_one_step_ticks (
                 } break;
 
                 case if_softblinker.set_LED_intensity_range (
-                        const intensity_steps_e intensity_steps_,
-                        const intensity_t       min_intensity_,
-                        const intensity_t       max_intensity_): {
+                        const unsigned          frequency_Hz_,    // 0 -> actives port
+                        const intensity_steps_e intensity_steps_, // [1..]
+                        const intensity_t       min_intensity_,   // [0..x]
+                        const intensity_t       max_intensity_) -> bool ok :  // [x..intensity_steps_]
+                {
+                    ok = (min_intensity_ <= max_intensity_);
 
-                    intensity_steps = intensity_steps_;
+                    if (ok) {
 
-                    min_intensity = (intensity_t) in_range_signed ((signed) min_intensity_, DEFAULT_DARK_INTENSITY, intensity_steps);
-                    max_intensity = (intensity_t) in_range_signed ((signed) max_intensity_, DEFAULT_DARK_INTENSITY, intensity_steps);
+                        intensity_steps = intensity_steps_;
 
-                    if (max_intensity == min_intensity) { // No change of intensity
-                        do_next_intensity_at_intervals = false;
-                        if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, max_intensity, transition_pwm);
-                    } else if (not do_next_intensity_at_intervals) {
-                        do_next_intensity_at_intervals = true;
-                        tmr :> timeout; // immediate timeout
-                    } else { // do_next_intensity_at_intervals already
-                        // No code
-                        // Don't disturb running timerafter
+                        min_intensity = (intensity_t) in_range_signed ((signed) min_intensity_, DEFAULT_DARK_INTENSITY, intensity_steps);
+                        max_intensity = (intensity_t) in_range_signed ((signed) max_intensity_, DEFAULT_DARK_INTENSITY, intensity_steps);
+
+                        frequency_Hz = frequency_Hz_;
+
+                        if (max_intensity == min_intensity) { // No INC_ONE_UP or INC_ONE_DOWN of sensitivity
+                            do_next_intensity_at_intervals = false;
+                            if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, max_intensity, transition_pwm);
+                        } else if (not do_next_intensity_at_intervals) {
+                            do_next_intensity_at_intervals = true;
+                            tmr :> timeout; // immediate timeout
+                        } else { // do_next_intensity_at_intervals already
+                            // No code
+                            // Don't disturb running timerafter
+                        }
+                    } else {
+                        // No code, no warning! Not according to protocol
                     }
 
                     // Printing disturbs update messages above, so it will appear to "blink"
@@ -133,29 +143,42 @@ period_ms_to_one_step_ticks (
                 } break;
 
                 case if_softblinker.set_LED_period_linear_ms (
-                        const unsigned         period_ms_,
+                        const unsigned         period_ms_, // See Comment in the header file
                         const start_LED_at_e   start_LED_at,
-                        const transition_pwm_e transition_pwm_): {
+                        const transition_pwm_e transition_pwm_) -> bool ok_running : {
 
                     // It seems like linear is ok for softblinking of a LED, ie. "softblink" is soft
                     // I have not tried any other, like sine. I would assume it would feel like dark_LED longer
 
-                    const unsigned period_ms = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
+                    unsigned period_ms = period_ms_;
+                    bool ok_running = do_next_intensity_at_intervals;
 
-                    if (start_LED_at == dark_LED) {
-                        now_intensity = DEFAULT_DARK_INTENSITY;
-                    } else if (start_LED_at == full_LED) {
-                        now_intensity = intensity_steps;
+                    if (ok_running) {
+                        // Normalise to set period
+                        //
+                        const unsigned    period_ms_            = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
+                        const intensity_t range_intensity_steps = max_intensity - min_intensity;
+                        //
+                        period_ms  = (period_ms_ * intensity_steps) / range_intensity_steps; // Now as range decreases, period increases
+
+                        if (start_LED_at == dark_LED) {
+                            now_intensity = DEFAULT_DARK_INTENSITY;
+                        } else if (start_LED_at == full_LED) {
+                            now_intensity = intensity_steps;
+                        } else {
+                            // continuous_LED, no code
+                        }
+
+                        one_step_at_intervals_ticks = period_ms_to_one_step_ticks (period_ms, intensity_steps);
+                        transition_pwm = transition_pwm_;
+
+                        // Printing disturbs update messages above, so it will appear to "blink"
+                        debug_print ("%u set_LED_period_linear_ms %u (%u, %d) min %u now %d max %u\n",
+                                id_task, period_ms, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
                     } else {
-                        // continuous_LED, no code
+                        // No user code
+                        debug_print ("%u set_LED_period_linear_ms do_next_intensity_at_intervals false\n", id_task);
                     }
-
-                    one_step_at_intervals_ticks = period_ms_to_one_step_ticks (period_ms, intensity_steps);
-                    transition_pwm = transition_pwm_;
-
-                    // Printing disturbs update messages above, so it will appear to "blink"
-                    debug_print ("%u set_LED_period_linear_ms %u (%u, %d) min %u now %d max %u\n", id_task, period_ms, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
-
                 } break;
             }
         }
@@ -226,35 +249,22 @@ typedef enum {activated, deactivated} port_is_e;
                 } break;
 
                 case if_pwm.set_LED_intensity (
-                        const unsigned          frequency_Hz,
+                        const unsigned          frequency_Hz, // 0 -> actives port
                         const intensity_steps_e intensity_steps_,
-                        const intensity_t       intensity, // Normalised to intensity_steps (allways ON when intensity == intensity_steps_)
+                        const intensity_t       intensity, // Normalised to intensity_steps (always ON when intensity == intensity_steps_)
                         const transition_pwm_e  transition_pwm) : {
 
                     intensity_steps = intensity_steps_;
 
-                    #define XTA_TEST_SET_LED_INTENSITY 0
-
-                    #if (XTA_TEST_SET_LED_INTENSITY == 0)
-                        // Pass with 14 unknowns, Num Paths: 7, Slack: 470.0 ns, Required: 1.0 us, Worst: 530.0 ns, Min Core Frequency: 265 MHz
-                        intensity_unit_ticks = (XS1_TIMER_MHZ * 1000000U) / (frequency_Hz * intensity_steps);
-                    #elif (XTA_TEST_SET_LED_INTENSITY == 1)
-                        // Pass with 14 unknowns, Num Paths: 7, Slack: 250.0 ns, Required: 1.0 us, Worst: 750.0 ns, Min Core Frequency: 375 MHz
-                        const unsigned period_us_ticks = (XS1_TIMER_MHZ * 1000000U) / frequency_Hz; // 1M/f us and * for ticks
-                        intensity_unit_ticks = period_us_ticks / intensity_steps;
-                    #else
-                        #error
-                    #endif
-
-
-
                     intensity_port_activated = intensity;
 
-                    if (transition_pwm == slide_transition_pwm) {
+                    if (frequency_Hz == 0) {
+                        pwm_running = false;
+                        ACTIVATE_PORT(port_pin_sign);
+                    } else if (transition_pwm == slide_transition_pwm) {
                         pwm_running = true;
-                    }
-                    else  // else lock_transition_pwm
-                    if (intensity_port_activated == intensity_steps) { // No need to involve any timerafter and get a short "off" blip
+                        // else lock_transition_pwm:
+                    } else if (intensity_port_activated == intensity_steps) { // No need to involve any timerafter and get a short "off" blip
                         pwm_running = false;
                         ACTIVATE_PORT(port_pin_sign);
                     } else if (intensity_port_activated == DEFAULT_DARK_INTENSITY) { // No need to involve any timerafter and get a short "on" blink
@@ -267,6 +277,22 @@ typedef enum {activated, deactivated} port_is_e;
                         // No code
                         // Don't disturb running timerafter, just let it use the new intensity_port_activated when it gets there
                     }
+
+                    if (pwm_running) {
+                        #define XTA_TEST_SET_LED_INTENSITY 0 // USE 0. Values from version 0023 (below)
+
+                        #if (XTA_TEST_SET_LED_INTENSITY == 0)
+                            // Pass with 14 unknowns, Num Paths: 7, Slack: 470.0 ns, Required: 1.0 us, Worst: 530.0 ns, Min Core Frequency: 265 MHz
+                            intensity_unit_ticks = (XS1_TIMER_MHZ * 1000000U) / (frequency_Hz * intensity_steps);
+                        #elif (XTA_TEST_SET_LED_INTENSITY == 1)
+                            // Pass with 14 unknowns, Num Paths: 7, Slack: 250.0 ns, Required: 1.0 us, Worst: 750.0 ns, Min Core Frequency: 375 MHz
+                            const unsigned period_us_ticks = (XS1_TIMER_MHZ * 1000000U) / frequency_Hz; // 1M/f us and * for ticks
+                            intensity_unit_ticks = period_us_ticks / intensity_steps;
+                        #else
+                            #error XTA_TEST_SET_LED_INTENSITY value
+                        #endif
+                    } else {}
+
                 } break;
             }
         }

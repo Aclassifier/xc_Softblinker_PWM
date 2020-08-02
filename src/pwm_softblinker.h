@@ -39,28 +39,38 @@
         lock_transition_pwm   // PWM pulses are locked --"--
     } transition_pwm_e;
 
-    #define SOFTBLINK_DEFAULT_PERIOD_MS 3 // So with steps_1000 it would take 3 seconds DARK_TO_FULL
-
     #define DEFAULT_PWM_FREQUENCY_HZ 222
-    //                               222 Hz no flickering (Should cause no "unperceived neurological effects"). Same as aquarium
+    //                               222 Hz no flickering (Should cause no "unperceived neurological effects"). Same as for my aquarium
     //                               100 Hz quite nice
-    //                                60 Hz show the effect quite well
+    //                                60 Hz shows the effect quite well
     //                                30 Hz terrible
 
-    #define SOFTBLINK_PERIOD_MIN_MS   200 // TODO replace with dark_LED  200 ms (5 blinks per second (100% up and 100% down in 1ms resolution))
-    #define SOFTBLINK_PERIOD_MAX_MS 10000 // TODO replace with full_LED 10000 ms
+    #define SOFTBLINK_PERIOD_MIN_MS   200 //   200 ms (5 blinks per second)
+    #define SOFTBLINK_PERIOD_MAX_MS 10000 // 10000 ms
 
     typedef interface softblinker_if {
 
-        void set_LED_intensity_range (
-                const intensity_steps_e intensity_steps,
-                const intensity_t       min_intensity,
-                const intensity_t       max_intensity);
+        bool // max_intensity >= min_intensity
+        set_LED_intensity_range ( // FIRST THIS..
+                const unsigned          frequency_Hz,     // 0 -> actives port
+                const intensity_steps_e intensity_steps, // [1..]
+                const intensity_t       min_intensity,   // [0..x]
+                const intensity_t       max_intensity    // [x..intensity_steps_]
+                );
 
-        void set_LED_period_linear_ms (
-                const unsigned         period_ms, // [SOFTBLINK_PERIOD_MIN_MS..SOFTBLINK_PERIOD_MAX_MS] between two max or two min
+        bool // timing is running (not DARK or FULL)
+        set_LED_period_linear_ms ( // ..THEN THIS
+                const unsigned         period_ms, // (*)
                 const start_LED_at_e   start_LED_at,
                 const transition_pwm_e transition_pwm);
+
+        // (*) The period goes for any full DARK to FULL (INTENSITY STEPS) BUT IS NORMALISED TO ACTUAL RANGE!
+        //     As the range is decreased, the time it takes to deliver out all port outpus decreases. Example:
+        //     A full period of 20 seconds increases for 10 and decreases for 10 seconds. If it starts
+        //     at 20% up and stops at 20% from the top its period is not longer 20 seconds, but 12 seconds.
+        //     Following the same curve it would start 2 seconds later and reach the top 2 second earlier,
+        //     taking 6 seconds to increase. Going down would also take 6 seconds. The sum = 12 seconds.
+        //     We therefore normalise to set period
 
     } softblinker_if;
 
@@ -75,9 +85,9 @@
     typedef interface pwm_if {
 
         void set_LED_intensity (
-                const unsigned          frequency_Hz,
+                const unsigned          frequency_Hz, // 0 -> actives port
                 const intensity_steps_e intensity_steps,
-                const intensity_t       intensity, // Normalised to intensity_steps (allways ON when intensity == intensity_steps)
+                const intensity_t       intensity,    // Normalised to intensity_steps (allways ON when intensity == intensity_steps)
                 const transition_pwm_e  transition_pwm);
     } pwm_if;
 

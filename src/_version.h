@@ -12,9 +12,11 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.2.3"
-#define AUDIOMUX_VERSION_NUM   0023
+#define AUDIOMUX_VERSION_STR "0.2.4"
+#define AUDIOMUX_VERSION_NUM   0024
 
+//                         TODO: ON/OFF for the two LED are sliding somewhat
+// 0024 02Aug2020          Frequency and period now seems to work
 // 0023 01Aug2020          XTA_TEST_SET_LED_INTENSITY introduced
 // 0022 01Aug2020          First version of PWM period introduced
 //                         warning: route(0)     Pass with 14 unknowns, Num Paths: 7, Slack: 250.0 ns, Required: 1.0 us, Worst: 750.0 ns, Min Core Frequency: 375 MHz
