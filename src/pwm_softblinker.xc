@@ -18,7 +18,7 @@
 #include "_globals.h"  // ..then this
 
 #include "maths.h"
-
+#include "barrier.h"
 #include "pwm_softblinker.h"
 
 // ---
@@ -46,6 +46,7 @@ period_ms_to_one_step_ticks (
     [[combinable]]
     void softblinker_task (
             const unsigned        id_task, // For printing only
+            chanend               c_barrier, // interface here would require different roles (client, server) to be defined. Not so with chanend
             client pwm_if         if_pwm,
             server softblinker_if if_softblinker,
             out buffered port:1   out_port_toggle_on_direction_change) // Toggle when LED max

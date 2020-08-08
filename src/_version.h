@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.2.4"
-#define AUDIOMUX_VERSION_NUM   0024
+#define AUDIOMUX_VERSION_STR "0.2.5"
+#define AUDIOMUX_VERSION_NUM   0025
 
+// 0025 08Aug2020          Interesting: warning: `c_barrier' not used in two parallel statements (byte range 0..4) [-Wunusual-code]
 //                         TODO: ON/OFF for the two LED are sliding somewhat
 // 0024 02Aug2020          Frequency and period now seems to work
 // 0023 01Aug2020          XTA_TEST_SET_LED_INTENSITY introduced

@@ -104,4 +104,8 @@
                                        // (226):                Constraints:   C:    5  T:    5   C:       7   Slack: 760.0 ns
                                        // (227):                Constraints:   C:   4   T:   4    C:      6    Slack: 760.0 ns
                                        // (228):                Constraints:   C:  3    T:  3     C:     3     Slack: 760.0 ns
-#endif /* GLOBALS_H_ */
+
+#define CONFIG_BARRIER 1 // 1 No barrier
+                         // 1 Two parts only
+
+#endif
