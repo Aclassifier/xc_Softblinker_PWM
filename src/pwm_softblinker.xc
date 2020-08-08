@@ -46,10 +46,10 @@ period_ms_to_one_step_ticks (
     [[combinable]]
     void softblinker_task (
             const unsigned        id_task, // For printing only
-            chanend               c_barrier, // interface here would require different roles (client, server) to be defined. Not so with chanend
             client pwm_if         if_pwm,
             server softblinker_if if_softblinker,
-            out buffered port:1   out_port_toggle_on_direction_change) // Toggle when LED max
+            out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
+            client barrier_if     if_barrier)
     {
         debug_print ("%u softblinker_task started\n", id_task);
 
@@ -65,6 +65,7 @@ period_ms_to_one_step_ticks (
         transition_pwm_e  transition_pwm;
         intensity_steps_e intensity_steps;
         unsigned          frequency_Hz;
+        do_synch_e        do_synch;
         // ---
 
         do_next_intensity_at_intervals = false;
@@ -75,6 +76,7 @@ period_ms_to_one_step_ticks (
         transition_pwm                 = slide_transition_pwm;
         intensity_steps                = DEFAULT_INTENSITY_STEPS;
         frequency_Hz                   = DEFAULT_PWM_FREQUENCY_HZ;
+        do_synch                       = synch_none;
 
         one_step_at_intervals_ticks = period_ms_to_one_step_ticks (DEFAULT_SOFTBLINK_PERIOD_MS, intensity_steps);
 
@@ -146,7 +148,8 @@ period_ms_to_one_step_ticks (
                 case if_softblinker.set_LED_period_linear_ms (
                         const unsigned         period_ms_, // See Comment in the header file
                         const start_LED_at_e   start_LED_at,
-                        const transition_pwm_e transition_pwm_) -> bool ok_running : {
+                        const transition_pwm_e transition_pwm_,
+                        const do_synch_e       do_synch_) -> bool ok_running : {
 
                     // It seems like linear is ok for softblinking of a LED, ie. "softblink" is soft
                     // I have not tried any other, like sine. I would assume it would feel like dark_LED longer
@@ -179,6 +182,14 @@ period_ms_to_one_step_ticks (
                     } else {
                         // No user code
                         debug_print ("%u set_LED_period_linear_ms do_next_intensity_at_intervals false\n", id_task);
+                    }
+
+                    if ((do_synch == synch_do) and (do_synch_ == synch_none)) {
+                        if_barrier.synch();
+                        select {
+                            case if_barrier.synched() : {} break;
+                            // error: select on notification within combinable function select case
+                        }
                     }
                 } break;
             }

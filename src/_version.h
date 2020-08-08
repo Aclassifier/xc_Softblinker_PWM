@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.2.5"
-#define AUDIOMUX_VERSION_NUM   0025
+#define AUDIOMUX_VERSION_STR "0.2.6"
+#define AUDIOMUX_VERSION_NUM   0026
 
+// 0026 08Aug2020          Interesting: Error: select on notification within combinable function select case
 // 0025 08Aug2020          Interesting: warning: `c_barrier' not used in two parallel statements (byte range 0..4) [-Wunusual-code]
 //                         TODO: ON/OFF for the two LED are sliding somewhat
 // 0024 02Aug2020          Frequency and period now seems to work

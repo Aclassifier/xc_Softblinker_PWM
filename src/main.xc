@@ -125,9 +125,9 @@
                     par {
                         softblinker_pwm_button_client_task (if_buttons, if_softblinker);
 
-                        button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);   // [[combinable]]
-                        button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]); // [[combinable]]
-                        button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
+                        button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);
+                        button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]);
+                        button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);
 
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
                             softblinker_pwm_for_LED_task (IOF_YELLOW_LED, if_softblinker[IOF_YELLOW_LED], yellow_LED, yellow_DIRCHANGE);
@@ -144,9 +144,9 @@
                     par {
                         softblinker_pwm_button_client_task (if_buttons, if_softblinker);
 
-                        button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);   // [[combinable]]
-                        button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]); // [[combinable]]
-                        button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
+                        button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);
+                        button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]);
+                        button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);
                     }
                 }
                 #if (CONFIG_PAR_ON_CORES==1)
@@ -187,8 +187,7 @@
         pwm_if         if_pwm        [CONFIG_NUM_SOFTBLIKER_LEDS];
         softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS];
 
-        // IF_BARRIER_DECLARE(CONFIG_NUM_SOFTBLIKER_LEDS); // if_barrier
-        C_BARRIER_DECLARE (CONFIG_NUM_SOFTBLIKER_LEDS); // c_barrier
+        IF_BARRIER_DECLARE(CONFIG_NUM_SOFTBLIKER_LEDS); // if_barrier
 
         par {
             #if (CONFIG_PAR_ON_CORES==5) // Almost the same as CONFIG_PAR_ON_CORES==3, but this is explicit
@@ -197,9 +196,9 @@
                     par {
                         softblinker_pwm_button_client_task (if_buttons, if_softblinker);
 
-                        button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);   // [[combinable]]
-                        button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]); // [[combinable]]
-                        button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
+                        button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);
+                        button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]);
+                        button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);
                     }
                 }
                 par { // Not [[combine]]
@@ -221,9 +220,9 @@
                     par {
                         softblinker_pwm_button_client_task (if_buttons, if_softblinker);
 
-                        button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);   // [[combinable]]
-                        button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]); // [[combinable]]
-                        button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
+                        button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);
+                        button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]);
+                        button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);
                         #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
                             // xta: (124) error: Failed to find route with id: -
                             pwm_for_LED_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], yellow_LED);
@@ -247,17 +246,14 @@
                             // Not time-critical, sll share one core:
                             softblinker_pwm_button_client_task (if_buttons, if_softblinker);
 
-                            button_task      (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);   // [[combinable]]
-                            button_task      (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]); // [[combinable]]
-                            button_task      (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
+                            button_task      (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);
+                            button_task      (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]);
+                            button_task      (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);
 
+                            softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED], yellow_DIRCHANGE, if_barrier [IOF_YELLOW_LED]);
+                            softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED],    red_DIRCHANGE,    if_barrier [IOF_RED_LED]);
 
-                        }
-                        par {
-                            // error: interface used as both client and server in one task (for if_softblinker!?)
-                            // warning: `c_barrier' not used in two parallel statements (byte range 0..4) [-Wunusual-code]
-                            softblinker_task (IOF_YELLOW_LED, c_barrier [IOF_YELLOW_LED], if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED], yellow_DIRCHANGE);
-                            softblinker_task (IOF_RED_LED,    c_barrier [IOF_RED_LED],    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED], red_DIRCHANGE);
+                            barrier_task (if_barrier);
                         }
                     }
                 #else
@@ -266,9 +262,9 @@
                         par {
                             softblinker_pwm_button_client_task (if_buttons, if_softblinker);
 
-                            button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);   // [[combinable]]
-                            button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]); // [[combinable]]
-                            button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);  // [[combinable]]
+                            button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);
+                            button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]);
+                            button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);
                         }
                     }
                 #endif

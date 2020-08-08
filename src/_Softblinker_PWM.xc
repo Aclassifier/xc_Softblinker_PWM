@@ -22,6 +22,7 @@
     #include "_texts_and_constants.h"
     #include "button_press.h"
     #include "maths.h"
+    #include "barrier.h"
     #include "pwm_softblinker.h"
 
     #include "_Softblinker_PWM.h"
