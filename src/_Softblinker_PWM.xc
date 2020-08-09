@@ -100,7 +100,7 @@ void softblinker_pwm_button_client_task (
                     params[ix].synch);
 
             // Back to normal
-            params[ix].start_LED_at = continuous_LED;
+            // params[ix].start_LED_at = continuous_LED;
         }
     }
 
@@ -258,7 +258,7 @@ void softblinker_pwm_button_client_task (
                                 transition_pwm,
                                 params[ix].synch);
                         //
-                        params[ix].start_LED_at = continuous_LED;
+                        // params[ix].start_LED_at = continuous_LED;
                     }
                 } else {}
             } break; // select i_buttons_in

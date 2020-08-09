@@ -33,7 +33,6 @@
     typedef enum {scan_none, scan_continuous}         scan_type_e;
     typedef enum {active_high = 0, active_low = 1}    port_pin_sign_e; // Must be {0,1} like this! Use of XOR is dependent on it!
     typedef enum {continuous_LED, dark_LED, full_LED} start_LED_at_e;
-    typedef enum {synch_none = 0, synch_active = 1}   synch_e;         // Must be {0,1} like this!
 
     typedef enum {
         slide_transition_pwm, // PWM pulses will slide with respect to period pulse like yellow_DIRCHANGE
@@ -64,7 +63,7 @@
                 const unsigned         period_ms, // (*)
                 const start_LED_at_e   start_LED_at,
                 const transition_pwm_e transition_pwm,
-                const synch_e          activate_synchronization);
+                const synch_e          do_synchronization);
 
         // (*) The period goes for any full DARK to FULL (INTENSITY STEPS) BUT IS NORMALISED TO ACTUAL RANGE!
         //     As the range is decreased, the time it takes to deliver out all port outpus decreases. Example:

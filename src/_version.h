@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.2.8"
-#define AUDIOMUX_VERSION_NUM   0028
+#define AUDIOMUX_VERSION_STR "0.2.9"
+#define AUDIOMUX_VERSION_NUM   0029
 
+// 0029 09Aug2020          synchronize and barrier_task works with CONFIG_BARRIER==2
 // 0028 09Aug2020          CONFIG_BARRIER==2 this compiles with
 //                         Constraints: C:8/6 T:10/6 C:32/11 M:9544 S:1404 C:7196 D:944
 //                         warning: route(0)     Pass with 14 unknowns, Num Paths: 8, Slack: 208.0 ns, Required: 1.0 us, Worst: 792.0 ns, Min Core Frequency: 396 MHz

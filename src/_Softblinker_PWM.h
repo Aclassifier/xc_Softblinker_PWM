@@ -23,9 +23,11 @@
         #define PARAMS_DEFAULTS { \
                {DEFAULT_SOFTBLINK_PERIOD_MS, DEFAULT_INTENSITY_STEPS, DEFAULT_DARK_INTENSITY, DEFAULT_FULL_INTENSITY, dark_LED, DEFAULT_PWM_FREQUENCY_HZ, synch_none}}
     #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-        #define PARAMS_DEFAULTS { \
-               {DEFAULT_SOFTBLINK_PERIOD_MS, DEFAULT_INTENSITY_STEPS, DEFAULT_FULL_INTENSITY * 0.2, DEFAULT_FULL_INTENSITY * 0.8, dark_LED, DEFAULT_PWM_FREQUENCY_HZ, synch_none}, \
-               {DEFAULT_SOFTBLINK_PERIOD_MS, DEFAULT_INTENSITY_STEPS, DEFAULT_DARK_INTENSITY,       DEFAULT_FULL_INTENSITY,       dark_LED, DEFAULT_PWM_FREQUENCY_HZ, synch_none}}
+        #define PARAMS_DEFAULTS {                                                                                                                         /* EQUAL! */  \
+               {DEFAULT_SOFTBLINK_PERIOD_MS, DEFAULT_INTENSITY_STEPS, DEFAULT_DARK_INTENSITY, DEFAULT_FULL_INTENSITY, dark_LED, DEFAULT_PWM_FREQUENCY_HZ, synch_active} \
+               ,                                                                                                                                          /* EQUAL! */  \
+               {DEFAULT_SOFTBLINK_PERIOD_MS, DEFAULT_INTENSITY_STEPS, DEFAULT_DARK_INTENSITY, DEFAULT_FULL_INTENSITY, dark_LED, DEFAULT_PWM_FREQUENCY_HZ, synch_active} \
+               }
     #endif
 
     #define IOF_YELLOW_LED 0 // To CONFIG_NUM_SOFTBLIKER_LEDS
