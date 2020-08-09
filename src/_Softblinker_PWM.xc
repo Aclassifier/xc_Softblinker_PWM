@@ -48,6 +48,7 @@ typedef struct params_t {
     intensity_t       max_intensity;
     start_LED_at_e    start_LED_at;
     unsigned          frequency_Hz;
+    synch_e           synch;
 } params_t;
 
 
@@ -84,6 +85,7 @@ void softblinker_pwm_button_client_task (
             params[ix].max_intensity   = params_now[ix].max_intensity;
             params[ix].start_LED_at    = params_now[ix].start_LED_at;
             params[ix].frequency_Hz    = params_now[ix].frequency_Hz;
+            params[ix].synch           = params_now[ix].synch;
 
             if_softblinker[ix].set_LED_intensity_range ( // FIRST THIS..
                     params[ix].frequency_Hz,
@@ -94,7 +96,8 @@ void softblinker_pwm_button_client_task (
             if_softblinker[ix].set_LED_period_linear_ms ( // ..THEN THIS
                     params[ix].period_ms,
                     params[ix].start_LED_at,
-                    transition_pwm);
+                    transition_pwm,
+                    params[ix].synch);
 
             // Back to normal
             params[ix].start_LED_at = continuous_LED;
@@ -252,7 +255,8 @@ void softblinker_pwm_button_client_task (
                         if_softblinker[ix].set_LED_period_linear_ms ( // ..THEN THIS
                                 params[ix].period_ms,
                                 params[ix].start_LED_at,
-                                transition_pwm);
+                                transition_pwm,
+                                params[ix].synch);
                         //
                         params[ix].start_LED_at = continuous_LED;
                     }

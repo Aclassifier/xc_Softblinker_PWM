@@ -49,7 +49,7 @@ period_ms_to_one_step_ticks (
             client pwm_if         if_pwm,
             server softblinker_if if_softblinker,
             out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
-            client barrier_if     if_barrier)
+            server barrier_if     if_barrier)
     {
         debug_print ("%u softblinker_task started\n", id_task);
 
@@ -65,18 +65,22 @@ period_ms_to_one_step_ticks (
         transition_pwm_e  transition_pwm;
         intensity_steps_e intensity_steps;
         unsigned          frequency_Hz;
-        do_synch_e        do_synch;
+        synch_e           do_synchronization;
+        bool              updated_activate_synchronization;
+        synch_e           await_synchronized;
         // ---
 
-        do_next_intensity_at_intervals = false;
-        now_intensity                  = DEFAULT_FULL_INTENSITY;
-        max_intensity                  = DEFAULT_FULL_INTENSITY;
-        min_intensity                  = DEFAULT_DARK_INTENSITY;
-        inc_steps                      = DEC_ONE_DOWN;
-        transition_pwm                 = slide_transition_pwm;
-        intensity_steps                = DEFAULT_INTENSITY_STEPS;
-        frequency_Hz                   = DEFAULT_PWM_FREQUENCY_HZ;
-        do_synch                       = synch_none;
+        do_next_intensity_at_intervals   = false;
+        now_intensity                    = DEFAULT_FULL_INTENSITY;
+        max_intensity                    = DEFAULT_FULL_INTENSITY;
+        min_intensity                    = DEFAULT_DARK_INTENSITY;
+        inc_steps                        = DEC_ONE_DOWN;
+        transition_pwm                   = slide_transition_pwm;
+        intensity_steps                  = DEFAULT_INTENSITY_STEPS;
+        frequency_Hz                     = DEFAULT_PWM_FREQUENCY_HZ;
+        do_synchronization               = synch_none;
+        updated_activate_synchronization = synch_none;
+        await_synchronized               = synch_none;
 
         one_step_at_intervals_ticks = period_ms_to_one_step_ticks (DEFAULT_SOFTBLINK_PERIOD_MS, intensity_steps);
 
@@ -92,9 +96,15 @@ period_ms_to_one_step_ticks (
                     // That's why both tests include "above" (>) and "below" (<)
 
                     if (now_intensity >= max_intensity) {
-                        inc_steps = DEC_ONE_DOWN;
-                        now_intensity = max_intensity;
-                        out_port_toggle_on_direction_change <: 0;
+                        if (do_synchronization == synch_active) {
+                            do_next_intensity_at_intervals = false;
+                            if_barrier.awaiting_synch();
+                        } else {
+                            inc_steps = DEC_ONE_DOWN;
+                            now_intensity = max_intensity;
+                            out_port_toggle_on_direction_change <: 0;
+                        }
+
                     } else if (now_intensity <= min_intensity) {
                         inc_steps = INC_ONE_UP;
                         now_intensity = min_intensity;
@@ -149,13 +159,13 @@ period_ms_to_one_step_ticks (
                         const unsigned         period_ms_, // See Comment in the header file
                         const start_LED_at_e   start_LED_at,
                         const transition_pwm_e transition_pwm_,
-                        const do_synch_e       do_synch_) -> bool ok_running : {
+                        const const synch_e    activate_synchronization_) -> bool ok_running : {
 
                     // It seems like linear is ok for softblinking of a LED, ie. "softblink" is soft
                     // I have not tried any other, like sine. I would assume it would feel like dark_LED longer
 
-                    unsigned period_ms = period_ms_;
-                    bool ok_running = do_next_intensity_at_intervals;
+                    unsigned period_ms;
+                    const bool ok_running = do_next_intensity_at_intervals;
 
                     if (ok_running) {
                         // Normalise to set period
@@ -176,6 +186,8 @@ period_ms_to_one_step_ticks (
                         one_step_at_intervals_ticks = period_ms_to_one_step_ticks (period_ms, intensity_steps);
                         transition_pwm = transition_pwm_;
 
+                        do_synchronization = activate_synchronization_;
+
                         // Printing disturbs update messages above, so it will appear to "blink"
                         debug_print ("%u set_LED_period_linear_ms %u (%u, %d) min %u now %d max %u\n",
                                 id_task, period_ms, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
@@ -183,15 +195,9 @@ period_ms_to_one_step_ticks (
                         // No user code
                         debug_print ("%u set_LED_period_linear_ms do_next_intensity_at_intervals false\n", id_task);
                     }
-
-                    if ((do_synch == synch_do) and (do_synch_ == synch_none)) {
-                        if_barrier.synch();
-                        select {
-                            case if_barrier.synched() : {} break;
-                            // error: select on notification within combinable function select case
-                        }
-                    }
                 } break;
+                case if_barrier.allow (void) : {} break; // TODO
+                case if_barrier.synchronized (void) : {} break; // TODO
             }
         }
     }
