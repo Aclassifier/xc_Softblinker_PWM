@@ -187,7 +187,11 @@
         pwm_if         if_pwm        [CONFIG_NUM_SOFTBLIKER_LEDS];
         softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS];
 
-        IF_BARRIER_DECLARE(CONFIG_NUM_SOFTBLIKER_LEDS); // if_barrier
+        #if (CONFIG_BARRIER==1)
+                barrier_if if_barrier[CONFIG_NUM_SOFTBLIKER_LEDS];
+        #elif (CONFIG_BARRIER==2)
+                chan c_barrier[CONFIG_NUM_SOFTBLIKER_LEDS];
+        #endif
 
         par {
             #if (CONFIG_PAR_ON_CORES==5) // Almost the same as CONFIG_PAR_ON_CORES==3, but this is explicit
@@ -238,24 +242,48 @@
                 }
             #else
                 #if (CONFIG_PAR_ON_CORES==8)
-                    // xta:(228) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
-                    // (BEST?)
-                    on tile[0]: {
-                        [[combine]]
-                        par {
-                            // Not time-critical, sll share one core:
-                            softblinker_pwm_button_client_task (if_buttons, if_softblinker);
+                    #if (CONFIG_BARRIER==1)
+                        // xta:(228) warning: route(0)     Pass with 14 unknowns, Num Paths: 12, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
+                        // (BEST?)
+                        on tile[0]: {
+                            [[combine]]
+                            par {
+                                // Not time-critical, sll share one core:
+                                softblinker_pwm_button_client_task (if_buttons, if_softblinker);
 
-                            button_task      (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);
-                            button_task      (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]);
-                            button_task      (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);
+                                button_task      (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);
+                                button_task      (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]);
+                                button_task      (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);
 
-                            softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED], yellow_DIRCHANGE, if_barrier [IOF_YELLOW_LED]);
-                            softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED],    red_DIRCHANGE,    if_barrier [IOF_RED_LED]);
 
-                            barrier_task (if_barrier);
+                                softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED], yellow_DIRCHANGE, if_barrier [IOF_YELLOW_LED]);
+                                softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED],    red_DIRCHANGE,    if_barrier [IOF_RED_LED]);
+                                barrier_task (if_barrier);
+                            }
                         }
-                    }
+                    #elif (CONFIG_BARRIER==2)
+
+                        on tile[0]: {
+                            [[combine]]
+                            par {
+                                // Not time-critical, sll share one core:
+                                softblinker_pwm_button_client_task (if_buttons, if_softblinker);
+
+                                button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);
+                                button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]);
+                                button_task (IOF_BUTTON_RIGHT,  inP_button_right,  if_buttons[IOF_BUTTON_RIGHT]);
+                            }
+                        }
+                        on tile[0]: {
+                            // [[combine]] error: `c_barrier' used between two combined tasks
+                            par {
+                                barrier_task (c_barrier);
+                                softblinker_task (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED], yellow_DIRCHANGE, c_barrier [IOF_YELLOW_LED]);
+                                softblinker_task (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED],    red_DIRCHANGE,    c_barrier [IOF_RED_LED]);
+
+                            }
+                        }
+                    #endif
                 #else
                     on tile[0]: {
                         [[combine]]

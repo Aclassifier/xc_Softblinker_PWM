@@ -12,9 +12,12 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.2.7"
-#define AUDIOMUX_VERSION_NUM   0027
+#define AUDIOMUX_VERSION_STR "0.2.8"
+#define AUDIOMUX_VERSION_NUM   0028
 
+// 0028 09Aug2020          CONFIG_BARRIER==2 this compiles with
+//                         Constraints: C:8/6 T:10/6 C:32/11 M:9544 S:1404 C:7196 D:944
+//                         warning: route(0)     Pass with 14 unknowns, Num Paths: 8, Slack: 208.0 ns, Required: 1.0 us, Worst: 792.0 ns, Min Core Frequency: 396 MHz
 // 0027 09Aug2020          Working with softblinker_task and CONFIG_BARRIER==1. Becomes very complex, especially with state needed to avoid deadlock
 //                         during on to off and allowing [[combinable]]. Not finished. Trying chan in next version
 //                         Constraints: C:8/3 T:10/3 C:32/5 M:11336 S:1596 C:8764 D:976

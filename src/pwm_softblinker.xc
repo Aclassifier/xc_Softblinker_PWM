@@ -42,166 +42,322 @@ period_ms_to_one_step_ticks (
 }
 
 #if (CONFIG_NUM_TASKS_PER_LED==2)
+    #if (CONFIG_BARRIER==1)
 
-    [[combinable]]
-    void softblinker_task (
-            const unsigned        id_task, // For printing only
-            client pwm_if         if_pwm,
-            server softblinker_if if_softblinker,
-            out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
-            server barrier_if     if_barrier)
-    {
-        debug_print ("%u softblinker_task started\n", id_task);
+        [[combinable]]
+        void softblinker_task (
+                const unsigned        id_task, // For printing only
+                client pwm_if         if_pwm,
+                server softblinker_if if_softblinker,
+                out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
+                server barrier_if     if_barrier)
+        {
+            debug_print ("%u softblinker_task started\n", id_task);
 
-        // --- softblinker_context_t for softblinker_pwm_for_LED_task
-        timer             tmr;
-        time32_t          timeout;
-        bool              do_next_intensity_at_intervals;
-        unsigned          one_step_at_intervals_ticks;
-        signed            now_intensity;
-        intensity_t       max_intensity;
-        intensity_t       min_intensity;
-        signed            inc_steps;
-        transition_pwm_e  transition_pwm;
-        intensity_steps_e intensity_steps;
-        unsigned          frequency_Hz;
-        synch_e           do_synchronization;
-        bool              updated_activate_synchronization;
-        synch_e           await_synchronized;
-        // ---
+            // --- softblinker_context_t for softblinker_pwm_for_LED_task
+            timer             tmr;
+            time32_t          timeout;
+            bool              do_next_intensity_at_intervals;
+            unsigned          one_step_at_intervals_ticks;
+            signed            now_intensity;
+            intensity_t       max_intensity;
+            intensity_t       min_intensity;
+            signed            inc_steps;
+            transition_pwm_e  transition_pwm;
+            intensity_steps_e intensity_steps;
+            unsigned          frequency_Hz;
+            synch_e           do_synchronization;
+            bool              updated_activate_synchronization;
+            synch_e           await_synchronized;
+            // ---
 
-        do_next_intensity_at_intervals   = false;
-        now_intensity                    = DEFAULT_FULL_INTENSITY;
-        max_intensity                    = DEFAULT_FULL_INTENSITY;
-        min_intensity                    = DEFAULT_DARK_INTENSITY;
-        inc_steps                        = DEC_ONE_DOWN;
-        transition_pwm                   = slide_transition_pwm;
-        intensity_steps                  = DEFAULT_INTENSITY_STEPS;
-        frequency_Hz                     = DEFAULT_PWM_FREQUENCY_HZ;
-        do_synchronization               = synch_none;
-        updated_activate_synchronization = synch_none;
-        await_synchronized               = synch_none;
+            do_next_intensity_at_intervals   = false;
+            now_intensity                    = DEFAULT_FULL_INTENSITY;
+            max_intensity                    = DEFAULT_FULL_INTENSITY;
+            min_intensity                    = DEFAULT_DARK_INTENSITY;
+            inc_steps                        = DEC_ONE_DOWN;
+            transition_pwm                   = slide_transition_pwm;
+            intensity_steps                  = DEFAULT_INTENSITY_STEPS;
+            frequency_Hz                     = DEFAULT_PWM_FREQUENCY_HZ;
+            do_synchronization               = synch_none;
+            updated_activate_synchronization = synch_none;
+            await_synchronized               = synch_none;
 
-        one_step_at_intervals_ticks = period_ms_to_one_step_ticks (DEFAULT_SOFTBLINK_PERIOD_MS, intensity_steps);
+            one_step_at_intervals_ticks = period_ms_to_one_step_ticks (DEFAULT_SOFTBLINK_PERIOD_MS, intensity_steps);
 
-        tmr :> timeout;
-        timeout += one_step_at_intervals_ticks;
+            tmr :> timeout;
+            timeout += one_step_at_intervals_ticks;
 
-        while (1) {
-            select {
-                case (do_next_intensity_at_intervals) => tmr when timerafter(timeout) :> void: {
+            while (1) {
+                select {
+                    case (do_next_intensity_at_intervals) => tmr when timerafter(timeout) :> void: {
 
-                    timeout += one_step_at_intervals_ticks;
-                    // Both min_intensity, now_intensity and max_intensity are set outside this block
-                    // That's why both tests include "above" (>) and "below" (<)
+                        timeout += one_step_at_intervals_ticks;
+                        // Both min_intensity, now_intensity and max_intensity are set outside this block
+                        // That's why both tests include "above" (>) and "below" (<)
 
-                    if (now_intensity >= max_intensity) {
-                        if (do_synchronization == synch_active) {
-                            do_next_intensity_at_intervals = false;
-                            if_barrier.awaiting_synch();
+                        if (now_intensity >= max_intensity) {
+                            if (do_synchronization == synch_active) {
+                                do_next_intensity_at_intervals = false;
+                                if_barrier.awaiting_synch();
+                            } else {
+                                inc_steps = DEC_ONE_DOWN;
+                                now_intensity = max_intensity;
+                                out_port_toggle_on_direction_change <: 0;
+                            }
+
+                        } else if (now_intensity <= min_intensity) {
+                            inc_steps = INC_ONE_UP;
+                            now_intensity = min_intensity;
+                            out_port_toggle_on_direction_change <: 1;
+                        } else {}
+
+                        now_intensity += inc_steps;
+
+                        // [1..100] [99..0] (Eaxmple for steps_0100)
+
+                        if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, (intensity_t) now_intensity, transition_pwm);
+
+                    } break;
+
+                    case if_softblinker.set_LED_intensity_range (
+                            const unsigned          frequency_Hz_,    // 0 -> actives port
+                            const intensity_steps_e intensity_steps_, // [1..]
+                            const intensity_t       min_intensity_,   // [0..x]
+                            const intensity_t       max_intensity_) -> bool ok :  // [x..intensity_steps_]
+                    {
+                        ok = (min_intensity_ <= max_intensity_);
+
+                        if (ok) {
+
+                            intensity_steps = intensity_steps_;
+
+                            min_intensity = (intensity_t) in_range_signed ((signed) min_intensity_, DEFAULT_DARK_INTENSITY, intensity_steps);
+                            max_intensity = (intensity_t) in_range_signed ((signed) max_intensity_, DEFAULT_DARK_INTENSITY, intensity_steps);
+
+                            frequency_Hz = frequency_Hz_;
+
+                            if (max_intensity == min_intensity) { // No INC_ONE_UP or INC_ONE_DOWN of sensitivity
+                                do_next_intensity_at_intervals = false;
+                                if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, max_intensity, transition_pwm);
+                            } else if (not do_next_intensity_at_intervals) {
+                                do_next_intensity_at_intervals = true;
+                                tmr :> timeout; // immediate timeout
+                            } else { // do_next_intensity_at_intervals already
+                                // No code
+                                // Don't disturb running timerafter
+                            }
                         } else {
+                            // No code, no warning! Not according to protocol
+                        }
+
+                        // Printing disturbs update messages above, so it will appear to "blink"
+                        debug_print ("%u set_LED_intensity steps %u (%u, %d) min %u now %d max %u \n",
+                                     id_task,                    intensity_steps, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
+                    } break;
+
+                    case if_softblinker.set_LED_period_linear_ms (
+                            const unsigned         period_ms_, // See Comment in the header file
+                            const start_LED_at_e   start_LED_at,
+                            const transition_pwm_e transition_pwm_,
+                            const const synch_e    activate_synchronization_) -> bool ok_running : {
+
+                        // It seems like linear is ok for softblinking of a LED, ie. "softblink" is soft
+                        // I have not tried any other, like sine. I would assume it would feel like dark_LED longer
+
+                        unsigned period_ms;
+                        const bool ok_running = do_next_intensity_at_intervals;
+
+                        if (ok_running) {
+                            // Normalise to set period
+                            //
+                            const unsigned    period_ms_            = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
+                            const intensity_t range_intensity_steps = max_intensity - min_intensity;
+                            //
+                            period_ms  = (period_ms_ * intensity_steps) / range_intensity_steps; // Now as range decreases, period increases
+
+                            if (start_LED_at == dark_LED) {
+                                now_intensity = DEFAULT_DARK_INTENSITY;
+                            } else if (start_LED_at == full_LED) {
+                                now_intensity = intensity_steps;
+                            } else {
+                                // continuous_LED, no code
+                            }
+
+                            one_step_at_intervals_ticks = period_ms_to_one_step_ticks (period_ms, intensity_steps);
+                            transition_pwm = transition_pwm_;
+
+                            do_synchronization = activate_synchronization_;
+
+                            // Printing disturbs update messages above, so it will appear to "blink"
+                            debug_print ("%u set_LED_period_linear_ms %u (%u, %d) min %u now %d max %u\n",
+                                    id_task, period_ms, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
+                        } else {
+                            // No user code
+                            debug_print ("%u set_LED_period_linear_ms do_next_intensity_at_intervals false\n", id_task);
+                        }
+                    } break;
+                    case if_barrier.allow (void) : {} break; // TODO
+                    case if_barrier.synchronized (void) : {} break; // TODO
+                }
+            }
+        }
+    #elif (CONFIG_BARRIER==2)
+
+        [[combinable]]
+        void softblinker_task (
+                const unsigned        id_task, // For printing only
+                client pwm_if         if_pwm,
+                server softblinker_if if_softblinker,
+                out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
+                chanend               c_barrier)
+        {
+            debug_print ("%u softblinker_task started\n", id_task);
+
+            // --- softblinker_context_t for softblinker_pwm_for_LED_task
+            timer             tmr;
+            time32_t          timeout;
+            bool              do_next_intensity_at_intervals;
+            unsigned          one_step_at_intervals_ticks;
+            signed            now_intensity;
+            intensity_t       max_intensity;
+            intensity_t       min_intensity;
+            signed            inc_steps;
+            transition_pwm_e  transition_pwm;
+            intensity_steps_e intensity_steps;
+            unsigned          frequency_Hz;
+            synch_e           do_synchronization;
+            // ---
+
+            do_next_intensity_at_intervals   = false;
+            now_intensity                    = DEFAULT_FULL_INTENSITY;
+            max_intensity                    = DEFAULT_FULL_INTENSITY;
+            min_intensity                    = DEFAULT_DARK_INTENSITY;
+            inc_steps                        = DEC_ONE_DOWN;
+            transition_pwm                   = slide_transition_pwm;
+            intensity_steps                  = DEFAULT_INTENSITY_STEPS;
+            frequency_Hz                     = DEFAULT_PWM_FREQUENCY_HZ;
+            do_synchronization               = synch_none;
+
+            one_step_at_intervals_ticks = period_ms_to_one_step_ticks (DEFAULT_SOFTBLINK_PERIOD_MS, intensity_steps);
+
+            tmr :> timeout;
+            timeout += one_step_at_intervals_ticks;
+
+            while (1) {
+                select {
+                    case (do_next_intensity_at_intervals) => tmr when timerafter(timeout) :> void: {
+
+                        timeout += one_step_at_intervals_ticks;
+                        // Both min_intensity, now_intensity and max_intensity are set outside this block
+                        // That's why both tests include "above" (>) and "below" (<)
+
+                        if (now_intensity >= max_intensity) {
+                            if (do_synchronization == synch_active) {
+                                bool any_value = 1;
+                                c_barrier <: any_value;
+                                c_barrier :> any_value;
+                            } else {}
+
                             inc_steps = DEC_ONE_DOWN;
                             now_intensity = max_intensity;
                             out_port_toggle_on_direction_change <: 0;
-                        }
 
-                    } else if (now_intensity <= min_intensity) {
-                        inc_steps = INC_ONE_UP;
-                        now_intensity = min_intensity;
-                        out_port_toggle_on_direction_change <: 1;
-                    } else {}
+                        } else if (now_intensity <= min_intensity) {
+                            inc_steps = INC_ONE_UP;
+                            now_intensity = min_intensity;
+                            out_port_toggle_on_direction_change <: 1;
+                        } else {}
 
-                    now_intensity += inc_steps;
+                        now_intensity += inc_steps;
 
-                    // [1..100] [99..0] (Eaxmple for steps_0100)
+                        // [1..100] [99..0] (Eaxmple for steps_0100)
 
-                    if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, (intensity_t) now_intensity, transition_pwm);
+                        if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, (intensity_t) now_intensity, transition_pwm);
 
-                } break;
+                    } break;
 
-                case if_softblinker.set_LED_intensity_range (
-                        const unsigned          frequency_Hz_,    // 0 -> actives port
-                        const intensity_steps_e intensity_steps_, // [1..]
-                        const intensity_t       min_intensity_,   // [0..x]
-                        const intensity_t       max_intensity_) -> bool ok :  // [x..intensity_steps_]
-                {
-                    ok = (min_intensity_ <= max_intensity_);
+                    case if_softblinker.set_LED_intensity_range (
+                            const unsigned          frequency_Hz_,    // 0 -> actives port
+                            const intensity_steps_e intensity_steps_, // [1..]
+                            const intensity_t       min_intensity_,   // [0..x]
+                            const intensity_t       max_intensity_) -> bool ok :  // [x..intensity_steps_]
+                    {
+                        ok = (min_intensity_ <= max_intensity_);
 
-                    if (ok) {
+                        if (ok) {
 
-                        intensity_steps = intensity_steps_;
+                            intensity_steps = intensity_steps_;
 
-                        min_intensity = (intensity_t) in_range_signed ((signed) min_intensity_, DEFAULT_DARK_INTENSITY, intensity_steps);
-                        max_intensity = (intensity_t) in_range_signed ((signed) max_intensity_, DEFAULT_DARK_INTENSITY, intensity_steps);
+                            min_intensity = (intensity_t) in_range_signed ((signed) min_intensity_, DEFAULT_DARK_INTENSITY, intensity_steps);
+                            max_intensity = (intensity_t) in_range_signed ((signed) max_intensity_, DEFAULT_DARK_INTENSITY, intensity_steps);
 
-                        frequency_Hz = frequency_Hz_;
+                            frequency_Hz = frequency_Hz_;
 
-                        if (max_intensity == min_intensity) { // No INC_ONE_UP or INC_ONE_DOWN of sensitivity
-                            do_next_intensity_at_intervals = false;
-                            if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, max_intensity, transition_pwm);
-                        } else if (not do_next_intensity_at_intervals) {
-                            do_next_intensity_at_intervals = true;
-                            tmr :> timeout; // immediate timeout
-                        } else { // do_next_intensity_at_intervals already
-                            // No code
-                            // Don't disturb running timerafter
-                        }
-                    } else {
-                        // No code, no warning! Not according to protocol
-                    }
-
-                    // Printing disturbs update messages above, so it will appear to "blink"
-                    debug_print ("%u set_LED_intensity steps %u (%u, %d) min %u now %d max %u \n",
-                                 id_task,                    intensity_steps, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
-                } break;
-
-                case if_softblinker.set_LED_period_linear_ms (
-                        const unsigned         period_ms_, // See Comment in the header file
-                        const start_LED_at_e   start_LED_at,
-                        const transition_pwm_e transition_pwm_,
-                        const const synch_e    activate_synchronization_) -> bool ok_running : {
-
-                    // It seems like linear is ok for softblinking of a LED, ie. "softblink" is soft
-                    // I have not tried any other, like sine. I would assume it would feel like dark_LED longer
-
-                    unsigned period_ms;
-                    const bool ok_running = do_next_intensity_at_intervals;
-
-                    if (ok_running) {
-                        // Normalise to set period
-                        //
-                        const unsigned    period_ms_            = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
-                        const intensity_t range_intensity_steps = max_intensity - min_intensity;
-                        //
-                        period_ms  = (period_ms_ * intensity_steps) / range_intensity_steps; // Now as range decreases, period increases
-
-                        if (start_LED_at == dark_LED) {
-                            now_intensity = DEFAULT_DARK_INTENSITY;
-                        } else if (start_LED_at == full_LED) {
-                            now_intensity = intensity_steps;
+                            if (max_intensity == min_intensity) { // No INC_ONE_UP or INC_ONE_DOWN of sensitivity
+                                do_next_intensity_at_intervals = false;
+                                if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, max_intensity, transition_pwm);
+                            } else if (not do_next_intensity_at_intervals) {
+                                do_next_intensity_at_intervals = true;
+                                tmr :> timeout; // immediate timeout
+                            } else { // do_next_intensity_at_intervals already
+                                // No code
+                                // Don't disturb running timerafter
+                            }
                         } else {
-                            // continuous_LED, no code
+                            // No code, no warning! Not according to protocol
                         }
-
-                        one_step_at_intervals_ticks = period_ms_to_one_step_ticks (period_ms, intensity_steps);
-                        transition_pwm = transition_pwm_;
-
-                        do_synchronization = activate_synchronization_;
 
                         // Printing disturbs update messages above, so it will appear to "blink"
-                        debug_print ("%u set_LED_period_linear_ms %u (%u, %d) min %u now %d max %u\n",
-                                id_task, period_ms, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
-                    } else {
-                        // No user code
-                        debug_print ("%u set_LED_period_linear_ms do_next_intensity_at_intervals false\n", id_task);
-                    }
-                } break;
-                case if_barrier.allow (void) : {} break; // TODO
-                case if_barrier.synchronized (void) : {} break; // TODO
+                        debug_print ("%u set_LED_intensity steps %u (%u, %d) min %u now %d max %u \n",
+                                     id_task,                    intensity_steps, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
+                    } break;
+
+                    case if_softblinker.set_LED_period_linear_ms (
+                            const unsigned         period_ms_, // See Comment in the header file
+                            const start_LED_at_e   start_LED_at,
+                            const transition_pwm_e transition_pwm_,
+                            const const synch_e    activate_synchronization_) -> bool ok_running : {
+
+                        // It seems like linear is ok for softblinking of a LED, ie. "softblink" is soft
+                        // I have not tried any other, like sine. I would assume it would feel like dark_LED longer
+
+                        unsigned period_ms;
+                        const bool ok_running = do_next_intensity_at_intervals;
+
+                        if (ok_running) {
+                            // Normalise to set period
+                            //
+                            const unsigned    period_ms_            = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
+                            const intensity_t range_intensity_steps = max_intensity - min_intensity;
+                            //
+                            period_ms  = (period_ms_ * intensity_steps) / range_intensity_steps; // Now as range decreases, period increases
+
+                            if (start_LED_at == dark_LED) {
+                                now_intensity = DEFAULT_DARK_INTENSITY;
+                            } else if (start_LED_at == full_LED) {
+                                now_intensity = intensity_steps;
+                            } else {
+                                // continuous_LED, no code
+                            }
+
+                            one_step_at_intervals_ticks = period_ms_to_one_step_ticks (period_ms, intensity_steps);
+                            transition_pwm = transition_pwm_;
+
+                            do_synchronization = activate_synchronization_;
+
+                            // Printing disturbs update messages above, so it will appear to "blink"
+                            debug_print ("%u set_LED_period_linear_ms %u (%u, %d) min %u now %d max %u\n",
+                                    id_task, period_ms, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
+                        } else {
+                            // No user code
+                            debug_print ("%u set_LED_period_linear_ms do_next_intensity_at_intervals false\n", id_task);
+                        }
+                    } break;
+                }
             }
         }
-    }
-
+    #endif
 
 #endif // CONFIG_NUM_TASKS_PER_LED
 

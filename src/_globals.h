@@ -105,7 +105,8 @@
                                        // (227):                Constraints:   C:   4   T:   4    C:      6    Slack: 760.0 ns
                                        // (228):                Constraints:   C:  3    T:  3     C:     3     Slack: 760.0 ns
 
-#define CONFIG_BARRIER 1 // 1 No barrier
-                         // 1 Two parts only
+#define CONFIG_BARRIER 2 // 0 No barrier
+                         // 1 interface
+                         // 2 chan
 
 #endif
