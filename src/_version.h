@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.2.9"
-#define AUDIOMUX_VERSION_NUM   0029
+#define AUDIOMUX_VERSION_STR "0.3.1"
+#define AUDIOMUX_VERSION_NUM   0031
 
+// 0031 10Aug2020          states_red_LED_t and handling. Not tested
 // 0029 09Aug2020          synchronize and barrier_task works with CONFIG_BARRIER==2
 // 0028 09Aug2020          CONFIG_BARRIER==2 this compiles with
 //                         Constraints: C:8/6 T:10/6 C:32/11 M:9544 S:1404 C:7196 D:944

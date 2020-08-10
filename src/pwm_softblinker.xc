@@ -261,7 +261,7 @@ period_ms_to_one_step_ticks (
                             inc_steps = DEC_ONE_DOWN;
                             now_intensity = max_intensity;
                             if (do_synchronization == synch_active) { // First this..
-                                synchronize (c_barrier, null);
+                                blocking_chan_barrier_synchronize (c_barrier, null);
                                 tmr :> timeout; // restart timer
                                 timeout += one_step_at_intervals_ticks;
                             } else {}
@@ -270,7 +270,7 @@ period_ms_to_one_step_ticks (
                             inc_steps = INC_ONE_UP;
                             now_intensity = min_intensity;
                             if (do_synchronization == synch_active) { // First this.
-                                 synchronize (c_barrier, null);
+                                blocking_chan_barrier_synchronize (c_barrier, null);
                                  tmr :> timeout; // restart timer
                                  timeout += one_step_at_intervals_ticks;
                              } else {}
