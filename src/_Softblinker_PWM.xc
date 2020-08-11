@@ -286,6 +286,7 @@ void softblinker_pwm_button_client_task (
                             if (states_red_LED.state_red_LED != state_red_LED_default) {
                                 beep (outP1_beeper_high, 50, 50);
                                 set_states_red_LED_to_default (states_red_LED); // Reset
+                                params[IOF_RED_LED].intensity_steps = DEFAULT_INTENSITY_STEPS;
                             } else {}
 
                         } break;

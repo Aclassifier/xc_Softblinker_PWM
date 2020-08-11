@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.3.4"
-#define AUDIOMUX_VERSION_NUM   0034
+#define AUDIOMUX_VERSION_STR "0.3.5"
+#define AUDIOMUX_VERSION_NUM   0035
 
+// 0035 11Aug2020          After set_states_red_LED_to_default also resets to DEFAULT_INTENSITY_STEPS
 // 0034 11Aug2020          PERIOD_MS_LIST now gives concrete period_ms values, better for control of te new beeper
 // 0033 11Aug2020          init_params_t_instance is new. state_red_LED now seems to work
 // 0032 11Aug2020          Last version with init of array of struct as
