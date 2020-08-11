@@ -26,6 +26,7 @@
     #define DEFAULT_DARK_INTENSITY      0
     #define DEFAULT_FULL_INTENSITY      DEFAULT_INTENSITY_STEPS
     #define DEFAULT_SOFTBLINK_PERIOD_MS 200 // 5 blinks per second
+    #define DEFAULT_SYNCH               synch_none // From "barrier.h"
 
     typedef unsigned intensity_t; // [DEFAULT_DARK_INTENSITY..intensity_steps_e]
 
@@ -37,6 +38,8 @@
         slide_transition_pwm, // PWM pulses will slide with respect to period pulse like yellow_DIRCHANGE
         lock_transition_pwm   // PWM pulses are locked --"--
     } transition_pwm_e;
+
+    #define DEFAULT_TRANSITION_PWM slide_transition_pwm
 
     #define DEFAULT_PWM_FREQUENCY_HZ 222
     //                               222 Hz no flickering (Should cause no "unperceived neurological effects"). Same as for my aquarium

@@ -75,9 +75,6 @@
     #error NO TARGET DEFINED
 #endif
 
-#define DEBUG_PRINT_GLOBAL_APP 0 // 0: all printf off
-                                 // 1: controlled locally in each xc file
-
 // CONFIGURATIONS                 (xyz)
 #define CONFIG_NUM_SOFTBLIKER_LEDS 2   // [1,2]
 #define CONFIG_NUM_TASKS_PER_LED    2  // [1,2]
@@ -108,5 +105,8 @@
 #define CONFIG_BARRIER 2 // 0 No barrier
                          // 1 interface
                          // 2 chan
+
+#define DEBUG_PRINT_GLOBAL_APP 1 // 0: all printf off
+                                 // 1: controlled locally in each xc file
 
 #endif

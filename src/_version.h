@@ -12,10 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.3.2"
-#define AUDIOMUX_VERSION_NUM   0032
+#define AUDIOMUX_VERSION_STR "0.3.3"
+#define AUDIOMUX_VERSION_NUM   0033
 
-// 0033 11Aug2020          init_params_t_instance is new
+// 0033 11Aug2020          init_params_t_instance is new. state_red_LED now seems to work
 // 0032 11Aug2020          Last version with init of array of struct as
 //                         const mystruct array[NUM] = {{0,1,200,3},{0,200,1,3}} since it's not safe
 // 0031 10Aug2020          states_red_LED_t and handling. Not tested

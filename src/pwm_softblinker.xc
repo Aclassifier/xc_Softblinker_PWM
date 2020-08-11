@@ -233,16 +233,16 @@ period_ms_to_one_step_ticks (
             start_LED_at_e    start_LED_at;
             // ---
 
-            do_next_intensity_at_intervals   = false;
-            now_intensity                    = DEFAULT_FULL_INTENSITY;
-            max_intensity                    = DEFAULT_FULL_INTENSITY;
-            min_intensity                    = DEFAULT_DARK_INTENSITY;
-            inc_steps                        = DEC_ONE_DOWN;
-            transition_pwm                   = slide_transition_pwm;
-            intensity_steps                  = DEFAULT_INTENSITY_STEPS;
-            frequency_Hz                     = DEFAULT_PWM_FREQUENCY_HZ;
-            start_LED_at                     = continuous_LED;
-            do_synchronization               = synch_none;
+            do_next_intensity_at_intervals = false;
+            now_intensity                  = DEFAULT_FULL_INTENSITY;
+            max_intensity                  = DEFAULT_FULL_INTENSITY;
+            min_intensity                  = DEFAULT_DARK_INTENSITY;
+            inc_steps                      = DEC_ONE_DOWN;
+            transition_pwm                 = DEFAULT_TRANSITION_PWM;
+            intensity_steps                = DEFAULT_INTENSITY_STEPS;
+            frequency_Hz                   = DEFAULT_PWM_FREQUENCY_HZ;
+            start_LED_at                   = continuous_LED;
+            do_synchronization             = DEFAULT_SYNCH;
 
             one_step_at_intervals_ticks = period_ms_to_one_step_ticks (DEFAULT_SOFTBLINK_PERIOD_MS, intensity_steps);
 
@@ -317,8 +317,8 @@ period_ms_to_one_step_ticks (
                         }
 
                         // Printing disturbs update messages above, so it will appear to "blink"
-                        debug_print ("%u set_LED_intensity steps %u (%u, %d) min %u now %d max %u \n",
-                                     id_task,                    intensity_steps, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
+                        debug_print ("%u set_LED_intensity steps ok %u steps %u (n %u, i %d) min %u now %d max %u \n",
+                                     id_task,                    ok, intensity_steps, do_next_intensity_at_intervals, inc_steps, min_intensity_, now_intensity, max_intensity_);
                     } break;
 
                     case if_softblinker.set_LED_period_linear_ms (

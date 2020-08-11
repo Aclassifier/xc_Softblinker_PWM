@@ -15,6 +15,7 @@
     #include <string.h>   // memcpy
     #include <xccompat.h> // REFERENCE_PARAM(my_app_ports_t, my_app_ports) -> my_app_ports_t &my_app_ports
     #include <iso646.h>   // not etc.
+    #include <limits.h>   // MAX_INT
 
     #include "_version.h" // First this..
     #include "_globals.h" // ..then this
@@ -33,59 +34,42 @@
 
 #define NUM_TIMEOUTS_PER_SECOND 2
 
+#if (CONFIG_NUM_SOFTBLIKER_LEDS==2)
+    #define LED_START_DARK_FULL {dark_LED, full_LED} // of start_LED_at_e with CONFIG_NUM_SOFTBLIKER_LEDS elements
+    #define LED_START_DARK_DARK {dark_LED, dark_LED} // --"--
+#elif (CONFIG_NUM_SOFTBLIKER_LEDS==1)
+    #define LED_START_DARK_FULL {dark_LED} // of start_LED_at_e with CONFIG_NUM_SOFTBLIKER_LEDS elements
+    #define LED_START_DARK_DARK {full_LED} // --"--
+#endif
+
 typedef enum {
     IN_PHASE,
     OUT_OF_PHASE
 } LED_phase_e;
 
 typedef struct params_t {
-    // -------------------------------------------
-    // CRITICAL LAYOUT: must match PARAMS_DEFAULTS
-    // -------------------------------------------
     unsigned          period_ms;
     intensity_steps_e intensity_steps;
     intensity_t       min_intensity;
     intensity_t       max_intensity;
-    start_LED_at_e    start_LED_at;
     unsigned          frequency_Hz;
+    transition_pwm_e  transition_pwm;
     synch_e           synch;
-    unsigned          min_max_intensity_offset_divisor; // Typically 1 (no offset) or 4 (1/4 offset down from max and up from min)
-} params_t; // Matching PARAMS_DEFAULTS_LIST
-
-#define OFFSET_DIVISOR_1 1
-#define OFFSET_DIVISOR_4 4
-
-// ------------------------------------
-// CRITICAL LAYOUT: must match params_t
-// ------------------------------------
-#define PARAMS_DEFAULTS_LIST     /* MATCH params_t: */ \
-    DEFAULT_SOFTBLINK_PERIOD_MS, /* period_ms       */ \
-    DEFAULT_INTENSITY_STEPS,     /* intensity_steps */ \
-    DEFAULT_DARK_INTENSITY,      /* min_intensity   */ \
-    DEFAULT_FULL_INTENSITY,      /* max_intensity   */ \
-    dark_LED,                    /* start_LED_at    */ \
-    DEFAULT_PWM_FREQUENCY_HZ,    /* frequency_Hz    */ \
-    synch_none,                  /* synch           */ \
-    OFFSET_DIVISOR_1             /* min_max_intensity_offset_divisor */
-
-#if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-    #define PARAMS_DEFAULTS {{PARAMS_DEFAULTS_LIST}}
-#elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-    #define PARAMS_DEFAULTS {{PARAMS_DEFAULTS_LIST}, {PARAMS_DEFAULTS_LIST}} // IOF_YELLOW_LED, IOF_RED_LED
-#endif
+    start_LED_at_e    start_LED_at;
+    unsigned          min_max_intensity_offset_divisor;
+} params_t;
 
 typedef enum {
-    state_red_LED_default,
-    state_red_LED_steps_0012,
-    state_red_LED_steps_0100,
-    state_red_LED_steps_0256,
-    state_red_LED_steps_1000, // now done all NUM_INTENSITY_STEPS
-    state_red_LED_half_intensity_range,
-    state_red_LED_half_intensity_range_and_both_synchronized,
+    state_red_LED_default,                                    // 0
+    state_red_LED_steps_0012,                                 // 1 steps_0012
+    state_red_LED_steps_0100,                                 // 2 steps_0100
+    state_red_LED_steps_0256,                                 // 3 steps_0256
+    state_red_LED_steps_1000,                                 // 4 steps_1000 -> now done all NUM_INTENSITY_STEPS
+    state_red_LED_half_intensity_range,                       // 5
+    state_red_LED_half_intensity_range_and_both_synchronized, // 6
     NUM_RED_LED_STATES // ==7 those above
     //
 } state_red_LED_e;
-
 
 typedef struct {
     unsigned        iOf_intensity_steps_list_red_LED;
@@ -93,39 +77,61 @@ typedef struct {
     //
 } states_red_LED_t;
 
-typedef params_t params_array_t [CONFIG_NUM_SOFTBLIKER_LEDS];
+#define OFFSET_DIVISOR_INFIN INT_MAX // 1/° = 0
+#define OFFSET_DIVISOR_4     4       // 1/4 offset down from max and up from min
 
-void init_params_t_instance (params_t params_array_t [CONFIG_NUM_SOFTBLIKER_LEDS]) {
-    // C has no way to safely init a constant array. Values are dependent on placement.
-    // Last version with it was 0032
-}
 
 void set_params_to_default (params_t params [CONFIG_NUM_SOFTBLIKER_LEDS]) {
 
-    params_t const params_now [CONFIG_NUM_SOFTBLIKER_LEDS] = PARAMS_DEFAULTS;
-    // params_t params_now [CONFIG_NUM_SOFTBLIKER_LEDS]; next version
-
-    // init_params_t_instance (params_now);
+    // C has no way to safely init a constant array of structs. Values are dependent on placement.
+    // Last version with that solution was 0032 commit 75ae5ad
 
     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-        // Set them
-        params[ix].period_ms                        = params_now[ix].period_ms;
-        params[ix].intensity_steps                  = params_now[ix].intensity_steps;
-        params[ix].min_intensity                    = params_now[ix].min_intensity;
-        params[ix].max_intensity                    = params_now[ix].max_intensity;
-        params[ix].start_LED_at                     = params_now[ix].start_LED_at;
-        params[ix].frequency_Hz                     = params_now[ix].frequency_Hz;
-        params[ix].synch                            = params_now[ix].synch;
+        // Init them
+        params[ix].period_ms                        = DEFAULT_SOFTBLINK_PERIOD_MS; // From "pwm_softblinker.h"
+        params[ix].intensity_steps                  = DEFAULT_INTENSITY_STEPS;     // --"--
+        params[ix].min_intensity                    = DEFAULT_DARK_INTENSITY;      // --"--
+        params[ix].max_intensity                    = DEFAULT_FULL_INTENSITY;      // --"--
+        params[ix].frequency_Hz                     = DEFAULT_PWM_FREQUENCY_HZ;    // --"--
+        params[ix].transition_pwm                   = DEFAULT_TRANSITION_PWM;      // --"--
+        params[ix].synch                            = DEFAULT_SYNCH;               // --"-- All equal to avoid deadlock
         params[ix].start_LED_at                     = continuous_LED;
-        params[ix].min_max_intensity_offset_divisor = params_now[ix].min_max_intensity_offset_divisor;
+        params[ix].min_max_intensity_offset_divisor = OFFSET_DIVISOR_INFIN;
     }
 }
+
 
 void set_states_red_LED_to_default (states_red_LED_t &states_red_LED) {
 
     states_red_LED.iOf_intensity_steps_list_red_LED = 0; // First, pointing to steps_0012
     states_red_LED.state_red_LED                    = state_red_LED_default;
 }
+
+
+void write_to_pwm_softblinker (
+        client softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS],
+        params_t              params        [CONFIG_NUM_SOFTBLIKER_LEDS]) {
+
+    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+
+        const unsigned offset = params[ix].intensity_steps / params[ix].min_max_intensity_offset_divisor;
+
+        if_softblinker[ix].set_LED_intensity_range ( // FIRST THIS (or rather, these)..
+                params[ix].frequency_Hz,
+                params[ix].intensity_steps,
+                params[ix].min_intensity + offset,
+                params[ix].max_intensity - offset);
+    }
+
+    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+        if_softblinker[ix].set_LED_period_linear_ms ( // ..THEN THIS (or rather, these)
+                params[ix].period_ms,
+                params[ix].start_LED_at,
+                params[ix].transition_pwm,
+                params[ix].synch);
+    }
+}
+
 
 [[combinable]]
 void softblinker_pwm_button_client_task (
@@ -137,7 +143,6 @@ void softblinker_pwm_button_client_task (
     button_action_t  buttons_action [BUTTONS_NUM_CLIENTS];
     params_t         params         [CONFIG_NUM_SOFTBLIKER_LEDS];
     LED_phase_e      LED_phase                          = IN_PHASE;
-    transition_pwm_e transition_pwm                     = lock_transition_pwm;
     bool             a_side_button_pressed_while_center = false;
     bool             write_LEDs_intensity_and_period    = false;
     states_red_LED_t states_red_LED;
@@ -150,22 +155,7 @@ void softblinker_pwm_button_client_task (
 
     set_params_to_default (params);
 
-    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-
-        const unsigned offset = params[ix].intensity_steps / params[ix].min_max_intensity_offset_divisor;
-
-        if_softblinker[ix].set_LED_intensity_range ( // FIRST THIS..
-                params[ix].frequency_Hz,
-                params[ix].intensity_steps,
-                params[ix].min_intensity + offset,
-                params[ix].max_intensity - offset);
-
-        if_softblinker[ix].set_LED_period_linear_ms ( // ..THEN THIS
-                params[ix].period_ms,
-                params[ix].start_LED_at,
-                transition_pwm,
-                params[ix].synch);
-    }
+    write_to_pwm_softblinker (if_softblinker, params);
 
     set_states_red_LED_to_default (states_red_LED);
 
@@ -197,7 +187,7 @@ void softblinker_pwm_button_client_task (
 
                         states_red_LED.state_red_LED = (states_red_LED.state_red_LED + 1) % NUM_RED_LED_STATES;
 
-                        debug_print ("state_red_LED %u\n", states_red_LED.state_red_LED);
+                        debug_print ("state_red_LED %u (%u)\n", states_red_LED.state_red_LED, NUM_RED_LED_STATES);
 
                         switch (states_red_LED.state_red_LED) {
                             case state_red_LED_default: {
@@ -219,7 +209,11 @@ void softblinker_pwm_button_client_task (
                             } break;
 
                             case state_red_LED_half_intensity_range_and_both_synchronized: {
-                                params[IOF_RED_LED].synch = synch_active;
+                                // All equal to avoid deadlock:
+                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                    params[ix].synch = synch_active;
+                                }
+
                             } break;
 
                             default : {} break; // Never here, no need to crash
@@ -266,16 +260,17 @@ void softblinker_pwm_button_client_task (
                             if (LED_phase == OUT_OF_PHASE) {
                                 const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_FULL; // This and..
                                 for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                    params[ix].start_LED_at = start_LED_at_now[ix];
+                                    params[ix].start_LED_at   = start_LED_at_now[ix];
+                                    params[ix].transition_pwm = slide_transition_pwm; // LEDs out of phase, and sliding PWM: ok combination
                                 }
-                                transition_pwm = slide_transition_pwm; // LEDs out of phase, and sliding PWM: ok combination
+
                                 LED_phase = IN_PHASE;
                             } else if (LED_phase == IN_PHASE) {
                                 const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_DARK; // .. this are "180 degrees" out of phase
                                 for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                    params[ix].start_LED_at = start_LED_at_now[ix];
+                                    params[ix].start_LED_at   = start_LED_at_now[ix];
+                                    params[ix].transition_pwm = lock_transition_pwm; // LEDs in phase and locked PWM: also ok combination
                                 }
-                                transition_pwm = lock_transition_pwm; // LEDs in phase and locked PWM: also ok combination
                                 LED_phase = OUT_OF_PHASE;
                             } else {}
 
@@ -336,25 +331,7 @@ void softblinker_pwm_button_client_task (
                 }
 
                 if (write_LEDs_intensity_and_period) {
-                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-
-                        const unsigned offset = params[ix].intensity_steps / params[ix].min_max_intensity_offset_divisor;
-
-                        if_softblinker[ix].set_LED_intensity_range ( // FIRST THIS..
-                                params[ix].frequency_Hz,
-                                params[ix].intensity_steps,
-                                params[ix].min_intensity + offset,
-                                params[ix].max_intensity - offset);
-                    }
-                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                        if_softblinker[ix].set_LED_period_linear_ms ( // ..THEN THIS
-                                params[ix].period_ms,
-                                params[ix].start_LED_at,
-                                transition_pwm,
-                                params[ix].synch);
-                        //
-                        // params[ix].start_LED_at = continuous_LED;
-                    }
+                    write_to_pwm_softblinker (if_softblinker, params);
                 } else {}
             } break; // select i_buttons_in
         }
