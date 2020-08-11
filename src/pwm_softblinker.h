@@ -12,16 +12,15 @@
         steps_0012          =   12, //   13 values
         steps_0100          =  100, //  101 values
         steps_0256          =  256, //  257 values (*)
-        steps_0500          =  500, //  501 values
         steps_1000          = 1000, // 1001 values
-        NUM_INTENSITY_STEPS = 5 // Those above
+        NUM_INTENSITY_STEPS = 4 // Those above
     } intensity_steps_e;
 
     // (*) Almost like 8-bit grayscale intensity or 8-bit for each of RGB for 24-bit pixels, or 8-bit alpha-channel transparence
     //     Even if a PWM "intensity" is not a continous current but pulse-width modulation
     //     0..256 gives 257 values, but I use it because 256 division by 4 is possible
 
-    #define INTENSITY_STEPS_LIST {steps_0012, steps_0100, steps_0256, steps_0500, steps_1000}
+    #define INTENSITY_STEPS_LIST {steps_0012, steps_0100, steps_0256, steps_1000}
 
     #define DEFAULT_INTENSITY_STEPS     steps_1000
     #define DEFAULT_DARK_INTENSITY      0

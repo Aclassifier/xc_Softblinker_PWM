@@ -49,21 +49,43 @@ typedef struct params_t {
     start_LED_at_e    start_LED_at;
     unsigned          frequency_Hz;
     synch_e           synch;
-    unsigned          min_max_intensity_offset_divisor; // Typical 1 or 4
-} params_t;
+    unsigned          min_max_intensity_offset_divisor; // Typically 1 (no offset) or 4 (1/4 offset down from max and up from min)
+} params_t; // Matching PARAMS_DEFAULTS_LIST
+
+#define OFFSET_DIVISOR_1 1
+#define OFFSET_DIVISOR_4 4
+
+// ------------------------------------
+// CRITICAL LAYOUT: must match params_t
+// ------------------------------------
+#define PARAMS_DEFAULTS_LIST     /* MATCH params_t: */ \
+    DEFAULT_SOFTBLINK_PERIOD_MS, /* period_ms       */ \
+    DEFAULT_INTENSITY_STEPS,     /* intensity_steps */ \
+    DEFAULT_DARK_INTENSITY,      /* min_intensity   */ \
+    DEFAULT_FULL_INTENSITY,      /* max_intensity   */ \
+    dark_LED,                    /* start_LED_at    */ \
+    DEFAULT_PWM_FREQUENCY_HZ,    /* frequency_Hz    */ \
+    synch_none,                  /* synch           */ \
+    OFFSET_DIVISOR_1             /* min_max_intensity_offset_divisor */
+
+#if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
+    #define PARAMS_DEFAULTS {{PARAMS_DEFAULTS_LIST}}
+#elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
+    #define PARAMS_DEFAULTS {{PARAMS_DEFAULTS_LIST}, {PARAMS_DEFAULTS_LIST}} // IOF_YELLOW_LED, IOF_RED_LED
+#endif
 
 typedef enum {
     state_red_LED_default,
     state_red_LED_steps_0012,
     state_red_LED_steps_0100,
     state_red_LED_steps_0256,
-    state_red_LED_steps_0500,
     state_red_LED_steps_1000, // now done all NUM_INTENSITY_STEPS
     state_red_LED_half_intensity_range,
     state_red_LED_half_intensity_range_and_both_synchronized,
-    NUM_RED_LED_STATES // == 8 are those above
+    NUM_RED_LED_STATES // ==7 those above
     //
 } state_red_LED_e;
+
 
 typedef struct {
     unsigned        iOf_intensity_steps_list_red_LED;
@@ -71,9 +93,19 @@ typedef struct {
     //
 } states_red_LED_t;
 
+typedef params_t params_array_t [CONFIG_NUM_SOFTBLIKER_LEDS];
+
+void init_params_t_instance (params_t params_array_t [CONFIG_NUM_SOFTBLIKER_LEDS]) {
+    // C has no way to safely init a constant array. Values are dependent on placement.
+    // Last version with it was 0032
+}
+
 void set_params_to_default (params_t params [CONFIG_NUM_SOFTBLIKER_LEDS]) {
 
     params_t const params_now [CONFIG_NUM_SOFTBLIKER_LEDS] = PARAMS_DEFAULTS;
+    // params_t params_now [CONFIG_NUM_SOFTBLIKER_LEDS]; next version
+
+    // init_params_t_instance (params_now);
 
     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
         // Set them
@@ -165,6 +197,8 @@ void softblinker_pwm_button_client_task (
 
                         states_red_LED.state_red_LED = (states_red_LED.state_red_LED + 1) % NUM_RED_LED_STATES;
 
+                        debug_print ("state_red_LED %u\n", states_red_LED.state_red_LED);
+
                         switch (states_red_LED.state_red_LED) {
                             case state_red_LED_default: {
                                 set_params_to_default (params);
@@ -174,7 +208,6 @@ void softblinker_pwm_button_client_task (
                             case state_red_LED_steps_0012:
                             case state_red_LED_steps_0100:
                             case state_red_LED_steps_0256:
-                            case state_red_LED_steps_0500:
                             case state_red_LED_steps_1000: {
                                 params[IOF_RED_LED].intensity_steps             = intensity_steps_list[states_red_LED.iOf_intensity_steps_list_red_LED];
                                 states_red_LED.iOf_intensity_steps_list_red_LED = (states_red_LED.iOf_intensity_steps_list_red_LED + 1) % NUM_INTENSITY_STEPS; // For next time

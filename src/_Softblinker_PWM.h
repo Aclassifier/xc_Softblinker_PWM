@@ -16,23 +16,6 @@
         #define LED_START_DARK_DARK {full_LED} // --"--
     #endif
 
-    #define OFFSET_DIVISOR_1 1
-    #define OFFSET_DIVISOR_4 4
-
-    // ------------------------------------
-    // CRITICAL LAYOUT: must match params_t
-    // ------------------------------------
-    #if (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-        #define PARAMS_DEFAULTS { \
-               {DEFAULT_SOFTBLINK_PERIOD_MS, DEFAULT_INTENSITY_STEPS, DEFAULT_DARK_INTENSITY, DEFAULT_FULL_INTENSITY, dark_LED, DEFAULT_PWM_FREQUENCY_HZ, synch_none, OFFSET_DIVISOR_1}}
-    #elif (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-        #define PARAMS_DEFAULTS {                                                                                                                         /* EQUAL! */                    \
-               {DEFAULT_SOFTBLINK_PERIOD_MS, DEFAULT_INTENSITY_STEPS, DEFAULT_DARK_INTENSITY, DEFAULT_FULL_INTENSITY, dark_LED, DEFAULT_PWM_FREQUENCY_HZ, synch_active, OFFSET_DIVISOR_1} \
-               ,                                                                                                                                          /* EQUAL! */                    \
-               {DEFAULT_SOFTBLINK_PERIOD_MS, DEFAULT_INTENSITY_STEPS, DEFAULT_DARK_INTENSITY, DEFAULT_FULL_INTENSITY, dark_LED, DEFAULT_PWM_FREQUENCY_HZ, synch_active, OFFSET_DIVISOR_1} \
-               }
-    #endif
-
     #define IOF_YELLOW_LED 0 // To CONFIG_NUM_SOFTBLIKER_LEDS
     #define IOF_RED_LED    1 // To CONFIG_NUM_SOFTBLIKER_LEDS
 
