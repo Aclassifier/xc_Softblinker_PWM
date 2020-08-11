@@ -57,6 +57,7 @@ typedef struct params_t {
     synch_e           synch;
     start_LED_at_e    start_LED_at;
     unsigned          min_max_intensity_offset_divisor;
+    unsigned          iof_period_ms_list;
 } params_t;
 
 typedef enum {
@@ -97,6 +98,7 @@ void set_params_to_default (params_t params [CONFIG_NUM_SOFTBLIKER_LEDS]) {
         params[ix].synch                            = DEFAULT_SYNCH;               // --"-- All equal to avoid deadlock
         params[ix].start_LED_at                     = continuous_LED;
         params[ix].min_max_intensity_offset_divisor = OFFSET_DIVISOR_INFIN;
+        params[ix].iof_period_ms_list               = 0;
     }
 }
 
@@ -132,12 +134,26 @@ void write_to_pwm_softblinker (
     }
 }
 
+void beep (
+        out buffered port:1 outP1_beeper_high,
+        unsigned const       ms_pre,
+        unsigned const       ms_pulse)
+{
+    delay_milliseconds(ms_pre);
+    outP1_beeper_high <: 1;
+    delay_milliseconds(ms_pulse);
+    outP1_beeper_high <: 0;
+}
+
 
 [[combinable]]
 void softblinker_pwm_button_client_task (
         server button_if      i_buttons_in[BUTTONS_NUM_CLIENTS],
-        client softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS])
+        client softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS],
+        out buffered port:1   outP1_beeper_high)
 {
+    beep (outP1_beeper_high, 0, 250);
+
     timer            tmr;
     time32_t         time_ticks; // Ticks to 100 in 1 us
     button_action_t  buttons_action [BUTTONS_NUM_CLIENTS];
@@ -147,7 +163,9 @@ void softblinker_pwm_button_client_task (
     bool             write_LEDs_intensity_and_period    = false;
     states_red_LED_t states_red_LED;
 
+    const unsigned          period_ms_list       [PERIOD_MS_LIST_LEN]  = PERIOD_MS_LIST;
     const intensity_steps_e intensity_steps_list [NUM_INTENSITY_STEPS] = INTENSITY_STEPS_LIST;
+
 
     for (unsigned ix = 0; ix < BUTTONS_NUM_CLIENTS; ix++) {
         buttons_action[ix] = BUTTON_ACTION_VOID;
@@ -184,6 +202,7 @@ void softblinker_pwm_button_client_task (
                 if (pressed_for_long) {
 
                     if (iof_button == IOF_BUTTON_CENTER) { // IOF_RED_LED:
+                        beep (outP1_beeper_high, 0, 200);
 
                         states_red_LED.state_red_LED = (states_red_LED.state_red_LED + 1) % NUM_RED_LED_STATES;
 
@@ -191,6 +210,8 @@ void softblinker_pwm_button_client_task (
 
                         switch (states_red_LED.state_red_LED) {
                             case state_red_LED_default: {
+                                beep (outP1_beeper_high, 50, 50);
+
                                 set_params_to_default (params);
                                 set_states_red_LED_to_default (states_red_LED);
                             } break;
@@ -241,22 +262,37 @@ void softblinker_pwm_button_client_task (
 
                     switch (iof_button) {
                         case IOF_BUTTON_LEFT: {
+                            beep (outP1_beeper_high, 0, 100);
+
                             iof_LED = IOF_YELLOW_LED;
 
                             if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
                                 a_side_button_pressed_while_center = true;
-                            } else if (params[iof_LED].period_ms < 1000) {
-                                params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
                             } else {
-                                params[iof_LED].period_ms += 2000;
+                                unsigned iof_period_ms = params[iof_LED].iof_period_ms_list;
+
+                                iof_period_ms = (iof_period_ms + 1) % PERIOD_MS_LIST_LEN;
+
+                                if (iof_period_ms == (PERIOD_MS_LIST_LEN - 1)) {
+                                    beep (outP1_beeper_high, 50, 50);
+                                }
+
+                                params[iof_LED].period_ms = period_ms_list[iof_period_ms];
+                                params[iof_LED].iof_period_ms_list = iof_period_ms;
                             }
 
                             button_taken = true;
 
-                            set_states_red_LED_to_default (states_red_LED); // Reset
+                            if (states_red_LED.state_red_LED != state_red_LED_default) {
+                                beep (outP1_beeper_high, 50, 50);
+                                set_states_red_LED_to_default (states_red_LED); // Reset
+                            } else {}
+
                         } break;
 
                         case IOF_BUTTON_CENTER: {
+                            beep (outP1_beeper_high, 0, 100);
+
                             if (LED_phase == OUT_OF_PHASE) {
                                 const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_FULL; // This and..
                                 for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
@@ -277,14 +313,23 @@ void softblinker_pwm_button_client_task (
                         } break;
 
                         case IOF_BUTTON_RIGHT: {
+                            beep (outP1_beeper_high, 0, 100);
+
                             iof_LED = IOF_RED_LED;
 
                             if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
                                 a_side_button_pressed_while_center = true;
-                            } else if (params[iof_LED].period_ms < 1000) {
-                                params[iof_LED].period_ms += SOFTBLINK_PERIOD_MIN_MS;
                             } else {
-                                params[iof_LED].period_ms += 2000;
+                                unsigned iof_period_ms = params[iof_LED].iof_period_ms_list;
+
+                                iof_period_ms = (iof_period_ms + 1) % PERIOD_MS_LIST_LEN;
+
+                                if (iof_period_ms == (PERIOD_MS_LIST_LEN - 1)) {
+                                    beep (outP1_beeper_high, 50, 50);
+                                }
+
+                                params[iof_LED].period_ms = period_ms_list[iof_period_ms];
+                                params[iof_LED].iof_period_ms_list = iof_period_ms;
                             }
 
                             button_taken = true;
@@ -295,19 +340,6 @@ void softblinker_pwm_button_client_task (
 
 
                     if (button_taken) {
-                        bool min_set;
-                        bool max_set;
-
-                        {params[iof_LED].period_ms, min_set, max_set} =
-                               in_range_signed_min_max_set (
-                                       params[iof_LED].period_ms,
-                                       SOFTBLINK_PERIOD_MIN_MS,
-                                       SOFTBLINK_PERIOD_MAX_MS);
-                        if (min_set) {
-                            params[iof_LED].period_ms = SOFTBLINK_PERIOD_MAX_MS; // wrap
-                        } else if (max_set) {
-                            params[iof_LED].period_ms = SOFTBLINK_PERIOD_MIN_MS; // wrap
-                        } else {}
 
                         // IOF_BUTTON_LEFT or IOF_BUTTON_RIGHT
                         if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {

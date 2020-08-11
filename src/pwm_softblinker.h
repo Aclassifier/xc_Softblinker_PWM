@@ -47,8 +47,17 @@
     //                                60 Hz shows the effect quite well
     //                                30 Hz terrible
 
-    #define SOFTBLINK_PERIOD_MIN_MS   200 //   200 ms (5 blinks per second)
-    #define SOFTBLINK_PERIOD_MAX_MS 10000 // 10000 ms
+    #define SOFTBLINK_PERIOD_MIN_MS   (200) //   200 ms (5 blinks per second)
+    #define SOFTBLINK_PERIOD_MAX_MS (10000) // 10000 ms
+
+    #define PERIOD_MS_LIST { \
+                SOFTBLINK_PERIOD_MIN_MS,       /*   200 */ \
+                SOFTBLINK_PERIOD_MIN_MS * 2.5, /*   500 */ \
+                SOFTBLINK_PERIOD_MAX_MS / 10,  /*  1000 */ \
+                SOFTBLINK_PERIOD_MAX_MS / 2,   /*  5000 */ \
+                SOFTBLINK_PERIOD_MAX_MS}       /* 10000 */
+
+    #define PERIOD_MS_LIST_LEN 5 // Above
 
     typedef interface softblinker_if {
 

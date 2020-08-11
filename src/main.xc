@@ -78,10 +78,10 @@
     out buffered port:1 outP1_external_red_dirchange    = on tile[0]: XS1_PORT_1J; //      GPIO-J1.PIN21 Only for the scope!
     //                                                    on tile[0]: XS1_PORT_1K; //      GPIO-J1.PIN19
     //                                                    on tile[0]: XS1_PORT_1L; //      GPIO-J1.PIN17
-    in buffered port:1 inP_button_left                  = on tile[0]: XS1_PORT_1M; // (*3) GPIO-J1.PIN63 (B1)
-    in buffered port:1 inP_button_center                = on tile[0]: XS1_PORT_1N; // (*3) GPIO-J1.PIN61 (B3)
-    in buffered port:1 inP_button_right                 = on tile[0]: XS1_PORT_1O; //      GPIO-J1.PIN59 (B2)
-    //                                                  = on tile[0]: XS1_PORT_1P; //      GPIO-J1.PIN57
+    in buffered port:1  inP_button_left                 = on tile[0]: XS1_PORT_1M; // (*3) GPIO-J1.PIN63 (B1)
+    in buffered port:1  inP_button_center               = on tile[0]: XS1_PORT_1N; // (*3) GPIO-J1.PIN61 (B3)
+    in buffered port:1  inP_button_right                = on tile[0]: XS1_PORT_1O; //      GPIO-J1.PIN59 (B2)
+    out buffered port:1 outP1_beeper_high               = on tile[0]: XS1_PORT_1P; //      GPIO-J1.PIN57 Beeps when line is high 3V3. 310 uA and 1k in series
     //
     // (*0) SPI pins NOT avaiable on any header, reserved for system usage
     // (*1) and (*2)
@@ -267,7 +267,7 @@
                             [[combine]]
                             par {
                                 // Not time-critical, sll share one core:
-                                softblinker_pwm_button_client_task (if_buttons, if_softblinker);
+                                softblinker_pwm_button_client_task (if_buttons, if_softblinker, outP1_beeper_high);
 
                                 button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);
                                 button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]);
