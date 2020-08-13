@@ -48,7 +48,7 @@
     //                                30 Hz terrible
 
     #define SOFTBLINK_PERIOD_MIN_MS   (200) //   200 ms (5 blinks per second)
-    #define SOFTBLINK_PERIOD_MAX_MS (10000) // 10000 ms
+    #define SOFTBLINK_PERIOD_MAX_MS (10000) // 10000 ms (up to 2exp31 ticks = 21.4 seconds)
 
     #define PERIOD_MS_LIST { \
                 SOFTBLINK_PERIOD_MIN_MS,       /*   200 */ \

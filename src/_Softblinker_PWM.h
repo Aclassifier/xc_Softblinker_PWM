@@ -11,6 +11,8 @@
     #define IOF_YELLOW_LED 0 // To CONFIG_NUM_SOFTBLIKER_LEDS
     #define IOF_RED_LED    1 // To CONFIG_NUM_SOFTBLIKER_LEDS
 
+typedef enum {beep_off = 0, beep_now = 1} beep_high_e; // Must be {0,1} like this! Using boolean expression on it
+
     [[combinable]]
     void softblinker_pwm_button_client_task (
             server button_if      i_buttons_in[BUTTONS_NUM_CLIENTS],

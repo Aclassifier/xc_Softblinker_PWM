@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.3.8"
-#define AUDIOMUX_VERSION_NUM   0038
+#define AUDIOMUX_VERSION_STR "0.3.9"
+#define AUDIOMUX_VERSION_NUM   0039
 
+// 0039 13Aug2020 PWM=008  state_red_LED_steps_0012 now starts with SOFTBLINK_PERIOD_MAX_MS
 // 0038 13Aug2020 PWM=007  reset long button red LED state done in a different state. Explained by state_red_LED_e
 // 0036 12Aug2020          A beep-beep moved to correct state
 // 0036 12Aug2020 PWM=006  reset long button red LED state done in a different state
