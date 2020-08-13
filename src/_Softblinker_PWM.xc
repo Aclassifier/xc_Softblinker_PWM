@@ -61,16 +61,19 @@ typedef struct params_t {
 } params_t;
 
 typedef enum {
-    state_red_LED_default,                                    // 0
-    state_red_LED_steps_0012,                                 // 1 steps_0012
-    state_red_LED_steps_0100,                                 // 2 steps_0100
-    state_red_LED_steps_0256,                                 // 3 steps_0256
-    state_red_LED_steps_1000,                                 // 4 steps_1000 -> now done all NUM_INTENSITY_STEPS
-    state_red_LED_half_intensity_range,                       // 5
-    state_red_LED_half_intensity_range_and_both_synchronized, // 6 "beep-beep"
+    state_red_LED_default,                 // 0 beeep                          (*1)
+    state_red_LED_steps_0012,              // 1 beeep beep                     (*2) steps_0012
+    state_red_LED_steps_0100,              // 2 beeep beep beep                (*2) steps_0100
+    state_red_LED_steps_0256,              // 3 beeep beep beep beep           (*2) steps_0256
+    state_red_LED_steps_1000,              // 4 beeep beep beep beep beep      (*2) steps_1000 -> now done all NUM_INTENSITY_STEPS
+    state_red_LED_half_range,              // 5 beeep beep beep beep beep beep (*2)
+    state_red_LED_half_range_both_synched, // 6 beeep beeeep                   (*2)
     NUM_RED_LED_STATES // ==7 those above
     //
 } state_red_LED_e;
+//
+// (*1) IOF_BUTTON_LEFT   pressed_for_long
+// (*2) IOF_BUTTON_CENTER pressed_for_long
 
 typedef struct {
     unsigned        iOf_intensity_steps_list_red_LED;
@@ -201,16 +204,29 @@ void softblinker_pwm_button_client_task (
 
                 if (pressed_for_long) {
 
-                    if (iof_button == IOF_BUTTON_CENTER) { // IOF_RED_LED:
+                    if (iof_button == IOF_BUTTON_LEFT) {
+                        if (states_red_LED.state_red_LED != state_red_LED_default) { // reset long button red LED state (PWM=007 up here)
+                            beep (outP1_beeper_high, 50, 50); // "beep-beep"
+                            set_states_red_LED_to_default (states_red_LED); // Reset
+                            params[IOF_RED_LED].intensity_steps = DEFAULT_INTENSITY_STEPS;
+                        } else {}
+
+                    } else if (iof_button == IOF_BUTTON_CENTER) { // IOF_RED_LED:
                         beep (outP1_beeper_high, 0, 200);
 
                         states_red_LED.state_red_LED = (states_red_LED.state_red_LED + 1) % NUM_RED_LED_STATES;
+
+                        // No extra beep for 0 or the last, but then 1, 2 .. extra beeps
+                        if (states_red_LED.state_red_LED < (NUM_RED_LED_STATES-1)) {
+                            for (unsigned ix=0; ix < states_red_LED.state_red_LED; ix++) {
+                                beep (outP1_beeper_high, 100, 50);
+                            }
+                        }
 
                         debug_print ("state_red_LED %u (%u)\n", states_red_LED.state_red_LED, NUM_RED_LED_STATES);
 
                         switch (states_red_LED.state_red_LED) {
                             case state_red_LED_default: {
-                                beep (outP1_beeper_high, 50, 50); // "beep-beep"
 
                                 set_params_to_default (params);
                                 set_states_red_LED_to_default (states_red_LED);
@@ -225,12 +241,15 @@ void softblinker_pwm_button_client_task (
                                 write_LEDs_intensity_and_period = true;
                             } break;
 
-                            case state_red_LED_half_intensity_range: {
+                            case state_red_LED_half_range: {
                                 params[IOF_RED_LED].min_max_intensity_offset_divisor = OFFSET_DIVISOR_4;
                             } break;
 
-                            case state_red_LED_half_intensity_range_and_both_synchronized: {
-                                // All equal to avoid deadlock:
+                            case state_red_LED_half_range_both_synched: {
+
+                                beep (outP1_beeper_high, 100, 300); // Loong extra beep for the last
+
+                                // All tasks must be set to the same synch pattern, equal to avoid deadlock:
                                 for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
                                     params[ix].synch = synch_active;
                                 }
@@ -270,12 +289,6 @@ void softblinker_pwm_button_client_task (
 
                                 a_side_button_pressed_while_center = true;
 
-                            } else if (states_red_LED.state_red_LED != state_red_LED_default) { // reset long button red LED state (PWM=006 up here)
-
-                                beep (outP1_beeper_high, 50, 50); // "beep-beep"
-                                set_states_red_LED_to_default (states_red_LED); // Reset
-                                params[IOF_RED_LED].intensity_steps = DEFAULT_INTENSITY_STEPS;
-
                             } else { // Standard
                                 unsigned iof_period_ms = params[iof_LED].iof_period_ms_list;
 
@@ -290,8 +303,6 @@ void softblinker_pwm_button_client_task (
                             }
 
                             button_taken = true;
-
-
 
                         } break;
 

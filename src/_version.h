@@ -12,9 +12,11 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.3.6"
-#define AUDIOMUX_VERSION_NUM   0036
+#define AUDIOMUX_VERSION_STR "0.3.8"
+#define AUDIOMUX_VERSION_NUM   0038
 
+// 0038 13Aug2020 PWM=007  reset long button red LED state done in a different state. Explained by state_red_LED_e
+// 0036 12Aug2020          A beep-beep moved to correct state
 // 0036 12Aug2020 PWM=006  reset long button red LED state done in a different state
 // 0035 11Aug2020          After set_states_red_LED_to_default also resets to DEFAULT_INTENSITY_STEPS
 // 0034 11Aug2020          PERIOD_MS_LIST now gives concrete period_ms values, better for control of te new beeper
