@@ -12,9 +12,11 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.3.9"
-#define AUDIOMUX_VERSION_NUM   0039
+#define AUDIOMUX_VERSION_STR "0.4.1" // Not used
+#define AUDIOMUX_VERSION_NUM   0041  // Not used either
 
+// 0041 13Aug2020          Flashed
+// 0040 13Aug2020 PWM=009  IOF_BUTTON_CENTER handled at released_now, not pressed_now so that it's not taken before pressed_for_long
 // 0039 13Aug2020 PWM=008  state_red_LED_steps_0012 now starts with SOFTBLINK_PERIOD_MAX_MS
 // 0038 13Aug2020 PWM=007  reset long button red LED state done in a different state. Explained by state_red_LED_e
 // 0036 12Aug2020          A beep-beep moved to correct state

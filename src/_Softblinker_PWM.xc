@@ -137,6 +137,7 @@ void write_to_pwm_softblinker (
     }
 }
 
+
 // Since the task that uses this has no time-critical functions it's ok that this
 // is not a separate task, and this ok that it then blocks the user
 //
@@ -200,6 +201,18 @@ void softblinker_pwm_button_client_task (
             //
             case i_buttons_in[int iof_button].button (const button_action_t button_action) : {
 
+                // -----------------------------------------------------------------------------------------------------------------------------
+                // BUTTONS          | LEFT                          | CENTER                                 | RIGHT
+                // -------------------------------------------------------------------------------------------|---------------------------------
+                // pressed_now      | if also CENTER set red period | ...                                    | if also CENTER set yellow period
+                //                  | else next yellow/left period  | ...                                    | else next red/right period
+                // ----------------------------------------------------...----------------------------------------------------------------------
+                // released_now     | ...                           | if LEFT or RIGHT pressed_now handle it | ...
+                //                  | ...                           | else swap phase and start black/full   | ...
+                // -----------------------------------------------------------------------------------------------------------------------------
+                // pressed_for_long | Clear state_red_LED_e         | Increase state_red_LED_e               | ...
+                // -----------------------------------------------------------------------------------------------------------------------------
+
                 buttons_action[iof_button] = button_action;
 
                 debug_print ("\nBUTTON [%u]=%u\n", iof_button, button_action);
@@ -208,169 +221,38 @@ void softblinker_pwm_button_client_task (
                 const bool pressed_for_long = (button_action == BUTTON_ACTION_PRESSED_FOR_LONG); // 2
                 const bool released_now     = (button_action == BUTTON_ACTION_RELEASED);         // 3 Not after BUTTON_ACTION_PRESSED_FOR_LONG
 
-                if (pressed_for_long) {
-
-                    if (iof_button == IOF_BUTTON_LEFT) {
-                        if (states_red_LED.state_red_LED != state_red_LED_default) { // reset long button red LED state (PWM=007 up here)
-                            beep (outP1_beeper_high, 0, 200);
-                            beep (outP1_beeper_high, 50, 50);
-
-                            set_states_red_LED_to_default (states_red_LED); // Reset
-                            params[IOF_RED_LED].intensity_steps = DEFAULT_INTENSITY_STEPS;
-                        } else {}
-
-                    } else if (iof_button == IOF_BUTTON_CENTER) { // IOF_RED_LED:
-                        beep (outP1_beeper_high, 0, 200);
-
-                        states_red_LED.state_red_LED = (states_red_LED.state_red_LED + 1) % NUM_RED_LED_STATES;
-
-                        // No extra beep for 0 or the last, but then 1, 2 .. extra beeps
-                        if (states_red_LED.state_red_LED < (NUM_RED_LED_STATES-1)) {
-                            for (unsigned ix=0; ix < states_red_LED.state_red_LED; ix++) {
-                                beep (outP1_beeper_high, 100, 50);
-                            }
-                        }
-
-                        debug_print ("state_red_LED %u (%u)\n", states_red_LED.state_red_LED, NUM_RED_LED_STATES);
-
-                        switch (states_red_LED.state_red_LED) {
-                            case state_red_LED_default: {
-
-                                set_params_to_default (params);
-                                set_states_red_LED_to_default (states_red_LED);
-                            } break;
-
-                            case state_red_LED_steps_0012: {
-                                // The effect of changing intensity_steps is best seen at slow periods:
-                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                    params[ix].period_ms = SOFTBLINK_PERIOD_MAX_MS; // PWM=008
-                                }
-                            } [[fallthrough]];
-                            case state_red_LED_steps_0100:
-                            case state_red_LED_steps_0256:
-                            case state_red_LED_steps_1000: {
-                                params[IOF_RED_LED].intensity_steps             = intensity_steps_list[states_red_LED.iOf_intensity_steps_list_red_LED];
-                                states_red_LED.iOf_intensity_steps_list_red_LED = (states_red_LED.iOf_intensity_steps_list_red_LED + 1) % NUM_INTENSITY_STEPS; // For next time
-                                write_LEDs_intensity_and_period = true;
-                            } break;
-
-                            case state_red_LED_half_range: {
-                                params[IOF_RED_LED].min_max_intensity_offset_divisor = OFFSET_DIVISOR_4;
-                            } break;
-
-                            case state_red_LED_half_range_both_synched: {
-                                beep (outP1_beeper_high, 100, 300); // Loong extra beep for the last
-
-                                // All tasks must be set to the same synch pattern, equal to avoid deadlock:
-                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                    params[ix].synch = synch_active;
-                                }
-
-                            } break;
-
-                            default : {} break; // Never here, no need to crash
-                        }
-
-                        write_LEDs_intensity_and_period = true;
-
-                    } else {}
-
-                } else if (released_now) {
-
-                    if (iof_button == IOF_BUTTON_CENTER) {
-                        if (a_side_button_pressed_while_center) {
-                            a_side_button_pressed_while_center = false;
-                        } else {
-                            // Nothing happened, let's go on again, but now with toggle_LED_phase changed
-                            write_LEDs_intensity_and_period = true;
-                        }
-                    } else {}
-
-                } else if (pressed_now) {
-
+                if (pressed_now) {
                     unsigned iof_LED;
-                    bool     button_taken = false;
+                    bool     button_left_or_right_taken = false;
 
                     switch (iof_button) {
                         case IOF_BUTTON_LEFT: {
-                            beep (outP1_beeper_high, 0, 100);
 
                             iof_LED = IOF_YELLOW_LED;
-
-                            if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) { // double button action
-
-                                a_side_button_pressed_while_center = true;
-
-                            } else { // Standard
-                                unsigned iof_period_ms = params[iof_LED].iof_period_ms_list;
-
-                                iof_period_ms = (iof_period_ms + 1) % PERIOD_MS_LIST_LEN;
-
-                                if (iof_period_ms == (PERIOD_MS_LIST_LEN - 1)) {
-                                    beep (outP1_beeper_high, 50, 50); // Extra beep at end of list
-                                }
-
-                                params[iof_LED].period_ms = period_ms_list[iof_period_ms];
-                                params[iof_LED].iof_period_ms_list = iof_period_ms;
-                            }
-
-                            button_taken = true;
+                            button_left_or_right_taken = true;
 
                         } break;
 
                         case IOF_BUTTON_CENTER: {
-                            beep (outP1_beeper_high, 0, 100);
-
-                            if (LED_phase == OUT_OF_PHASE) {
-                                const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_FULL; // This and..
-                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                    params[ix].start_LED_at   = start_LED_at_now[ix];
-                                    params[ix].transition_pwm = slide_transition_pwm; // LEDs out of phase, and sliding PWM: ok combination
-                                }
-
-                                LED_phase = IN_PHASE;
-                            } else if (LED_phase == IN_PHASE) {
-                                const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_DARK; // .. this are "180 degrees" out of phase
-                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                    params[ix].start_LED_at   = start_LED_at_now[ix];
-                                    params[ix].transition_pwm = lock_transition_pwm; // LEDs in phase and locked PWM: also ok combination
-                                }
-                                LED_phase = OUT_OF_PHASE;
-                            } else {}
-
+                            // No code
+                            // IOF_BUTTON_CENTER handled at released_now, not pressed_now so that it's not taken before pressed_for_long
                         } break;
 
                         case IOF_BUTTON_RIGHT: {
-                            beep (outP1_beeper_high, 0, 100);
 
                             iof_LED = IOF_RED_LED;
+                            button_left_or_right_taken = true;
 
-                            if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
-                                a_side_button_pressed_while_center = true;
-                            } else {
-                                unsigned iof_period_ms = params[iof_LED].iof_period_ms_list;
-
-                                iof_period_ms = (iof_period_ms + 1) % PERIOD_MS_LIST_LEN;
-
-                                if (iof_period_ms == (PERIOD_MS_LIST_LEN - 1)) {
-                                    beep (outP1_beeper_high, 50, 50); // Extra beep at end of list
-                                }
-
-                                params[iof_LED].period_ms = period_ms_list[iof_period_ms];
-                                params[iof_LED].iof_period_ms_list = iof_period_ms;
-                            }
-
-                            button_taken = true;
                         } break;
 
-                        default : {} break;
+                        default: {} break; // won't happen, but no need to crash
                     } // Outer switch
 
+                    if (button_left_or_right_taken) {
+                        beep (outP1_beeper_high, 0, 100);
 
-                    if (button_taken) {
-
-                        // IOF_BUTTON_LEFT or IOF_BUTTON_RIGHT
-                        if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) {
+                        if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) { // double button action
+                            a_side_button_pressed_while_center = true;
                             #if (CONFIG_NUM_SOFTBLIKER_LEDS==2)
                                 if (iof_LED == IOF_RED_LED) {
                                     params[IOF_YELLOW_LED].period_ms = params[IOF_RED_LED].period_ms; // set the other
@@ -380,15 +262,143 @@ void softblinker_pwm_button_client_task (
                             #elif (CONFIG_NUM_SOFTBLIKER_LEDS==1)
                                 // No code, meaningless
                             #endif
-                        } else {}
+                        } else { // Standard
+
+                            unsigned iof_period_ms = params[iof_LED].iof_period_ms_list;
+
+                            iof_period_ms = (iof_period_ms + 1) % PERIOD_MS_LIST_LEN;
+
+                            if (iof_period_ms == (PERIOD_MS_LIST_LEN - 1)) {
+                                beep (outP1_beeper_high, 50, 50); // Extra beep at end of list
+                            }
+
+                            params[iof_LED].period_ms = period_ms_list[iof_period_ms];
+                            params[iof_LED].iof_period_ms_list = iof_period_ms;
+                        }
 
                         write_LEDs_intensity_and_period = true;
 
-                    } else {} // not button_taken
+                    } else {} // not button_left_or_right_taken
+
+                } else if (released_now) {
+                    switch (iof_button) {
+                        case IOF_BUTTON_LEFT: {
+                            // No code, no handling
+                        } break;
+
+                        case IOF_BUTTON_CENTER: {
+                            if (a_side_button_pressed_while_center) {
+                                a_side_button_pressed_while_center = false;
+                            } else {
+
+                                beep (outP1_beeper_high, 0, 100);
+                                write_LEDs_intensity_and_period = true;
+
+                                if (LED_phase == OUT_OF_PHASE) {
+                                    const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_FULL; // This and..
+                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                        params[ix].start_LED_at   = start_LED_at_now[ix];
+                                        params[ix].transition_pwm = slide_transition_pwm; // LEDs out of phase, and sliding PWM: ok combination
+                                    }
+
+                                    LED_phase = IN_PHASE;
+                                } else if (LED_phase == IN_PHASE) {
+                                    const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_DARK; // .. this are "180 degrees" out of phase
+                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                        params[ix].start_LED_at   = start_LED_at_now[ix];
+                                        params[ix].transition_pwm = lock_transition_pwm; // LEDs in phase and locked PWM: also ok combination
+                                    }
+                                    LED_phase = OUT_OF_PHASE;
+                                } else {}
+                            }
+                        } break;
+
+                        case IOF_BUTTON_RIGHT: {
+                            // No code, no handling
+                        } break;
+
+                        default: {} break; // won't happen, but no need to crash
+                    } // switch
+
+                } else if (pressed_for_long) {
+                    switch (iof_button) {
+
+                        case IOF_BUTTON_LEFT: {
+                            if (states_red_LED.state_red_LED != state_red_LED_default) { // reset long button red LED state (PWM=007 up here)
+                                beep (outP1_beeper_high, 0, 200);
+                                beep (outP1_beeper_high, 50, 50);
+
+                                set_states_red_LED_to_default (states_red_LED); // Reset
+                                params[IOF_RED_LED].intensity_steps = DEFAULT_INTENSITY_STEPS;
+                            } else {}
+                        } break;
+
+                        case IOF_BUTTON_CENTER: { // IOF_RED_LED:
+                            beep (outP1_beeper_high, 0, 200);
+
+                            states_red_LED.state_red_LED = (states_red_LED.state_red_LED + 1) % NUM_RED_LED_STATES;
+
+                            // No extra beep for 0 or the last, but then 1, 2 .. extra beeps
+                            if (states_red_LED.state_red_LED < (NUM_RED_LED_STATES-1)) {
+                                for (unsigned ix=0; ix < states_red_LED.state_red_LED; ix++) {
+                                    beep (outP1_beeper_high, 100, 50);
+                                }
+                            }
+
+                            debug_print ("state_red_LED %u (%u)\n", states_red_LED.state_red_LED, NUM_RED_LED_STATES);
+
+                            switch (states_red_LED.state_red_LED) {
+                                case state_red_LED_default: {
+
+                                    set_params_to_default (params);
+                                    set_states_red_LED_to_default (states_red_LED);
+                                } break;
+
+                                case state_red_LED_steps_0012: {
+                                    // The effect of changing intensity_steps is best seen at slow periods:
+                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                        params[ix].period_ms = SOFTBLINK_PERIOD_MAX_MS; // PWM=008
+                                    }
+                                } [[fallthrough]];
+                                case state_red_LED_steps_0100:
+                                case state_red_LED_steps_0256:
+                                case state_red_LED_steps_1000: {
+                                    params[IOF_RED_LED].intensity_steps             = intensity_steps_list[states_red_LED.iOf_intensity_steps_list_red_LED];
+                                    states_red_LED.iOf_intensity_steps_list_red_LED = (states_red_LED.iOf_intensity_steps_list_red_LED + 1) % NUM_INTENSITY_STEPS; // For next time
+                                    write_LEDs_intensity_and_period = true;
+                                } break;
+
+                                case state_red_LED_half_range: {
+                                    params[IOF_RED_LED].min_max_intensity_offset_divisor = OFFSET_DIVISOR_4;
+                                } break;
+
+                                case state_red_LED_half_range_both_synched: {
+                                    beep (outP1_beeper_high, 100, 300); // Loong extra beep for the last
+
+                                    // All tasks must be set to the same synch pattern, equal to avoid deadlock:
+                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                        params[ix].synch = synch_active;
+                                    }
+
+                                } break;
+
+                                default : {} break; // Never here, no need to crash
+                            } // switch
+
+                            write_LEDs_intensity_and_period = true;
+
+                        } break;
+
+                        case IOF_BUTTON_RIGHT: {
+                            // No code, no handling
+                        } break;
+
+                        default: {} break; // won't happen, but no need to crash
+                    }; // switch
 
                 } else {
-                    // Not pressed_now, no code
-                }
+                   // No code, no pressed action
+                } // end of pressed_now, released_now and pressed_for_long list. I wish I had a folding editor!
 
                 if (write_LEDs_intensity_and_period) {
                     write_to_pwm_softblinker (if_softblinker, params);
