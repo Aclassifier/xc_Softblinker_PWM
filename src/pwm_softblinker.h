@@ -25,7 +25,6 @@
     #define DEFAULT_INTENSITY_STEPS     steps_1000
     #define DEFAULT_DARK_INTENSITY      0
     #define DEFAULT_FULL_INTENSITY      DEFAULT_INTENSITY_STEPS
-    #define DEFAULT_SOFTBLINK_PERIOD_MS 200 // 5 blinks per second
     #define DEFAULT_SYNCH               synch_none // From "barrier.h"
 
     typedef unsigned intensity_t; // [DEFAULT_DARK_INTENSITY..intensity_steps_e]
@@ -48,14 +47,16 @@
     //                                30 Hz terrible
 
     #define SOFTBLINK_PERIOD_MIN_MS   (200) //   200 ms (5 blinks per second)
-    #define SOFTBLINK_PERIOD_MAX_MS (10000) // 10000 ms (up to 2exp31 ticks = 21.4 seconds)
+    #define SOFTBLINK_PERIOD_MAX_MS (10000) // 10000 ms
+
+    #define DEFAULT_SOFTBLINK_PERIOD_MS SOFTBLINK_PERIOD_MAX_MS
 
     #define PERIOD_MS_LIST { \
-                SOFTBLINK_PERIOD_MIN_MS,       /*   200 */ \
-                SOFTBLINK_PERIOD_MIN_MS * 2.5, /*   500 */ \
-                SOFTBLINK_PERIOD_MAX_MS / 10,  /*  1000 */ \
+                SOFTBLINK_PERIOD_MAX_MS,       /* 10000 */ \
                 SOFTBLINK_PERIOD_MAX_MS / 2,   /*  5000 */ \
-                SOFTBLINK_PERIOD_MAX_MS}       /* 10000 */
+                SOFTBLINK_PERIOD_MAX_MS / 10,  /*  1000 */ \
+                SOFTBLINK_PERIOD_MIN_MS * 2.5, /*   500 */ \
+                SOFTBLINK_PERIOD_MIN_MS}       /*   200 */
 
     #define PERIOD_MS_LIST_LEN 5 // Above
 

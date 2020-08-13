@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.4.2" // Not used
-#define AUDIOMUX_VERSION_NUM   0042  // Not used either
+#define AUDIOMUX_VERSION_STR "0.4.3" // Not used
+#define AUDIOMUX_VERSION_NUM   0043  // Not used either
 
+// 0043 13Aug2020          Now starting with 10 seconds period. Much nicer!
 // 0042 13Aug2020          Have tested a lot, with scope, and needed to reset to synch_none as well. Should probably have a LED when synched
 // 0041 13Aug2020          Flashed
 // 0040 13Aug2020 PWM=009  IOF_BUTTON_CENTER handled at released_now, not pressed_now so that it's not taken before pressed_for_long
