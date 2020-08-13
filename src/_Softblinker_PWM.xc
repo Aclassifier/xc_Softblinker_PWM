@@ -106,10 +106,16 @@ void set_params_to_default (params_t params [CONFIG_NUM_SOFTBLIKER_LEDS]) {
 }
 
 
-void set_states_red_LED_to_default (states_red_LED_t &states_red_LED) {
+void set_states_red_LED_to_default (
+        params_t         params [CONFIG_NUM_SOFTBLIKER_LEDS],
+        states_red_LED_t &states_red_LED) {
 
     states_red_LED.iOf_intensity_steps_list_red_LED = 0; // First, pointing to steps_0012
     states_red_LED.state_red_LED                    = state_red_LED_default;
+
+    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+        params[ix].synch = DEFAULT_SYNCH;
+    }
 }
 
 
@@ -170,7 +176,6 @@ void softblinker_pwm_button_client_task (
     params_t         params         [CONFIG_NUM_SOFTBLIKER_LEDS];
     LED_phase_e      LED_phase                          = IN_PHASE;
     bool             a_side_button_pressed_while_center = false;
-    bool             write_LEDs_intensity_and_period    = false;
     states_red_LED_t states_red_LED;
 
     const unsigned          period_ms_list       [PERIOD_MS_LIST_LEN]  = PERIOD_MS_LIST;
@@ -185,7 +190,7 @@ void softblinker_pwm_button_client_task (
 
     write_to_pwm_softblinker (if_softblinker, params);
 
-    set_states_red_LED_to_default (states_red_LED);
+    set_states_red_LED_to_default (params, states_red_LED);
 
     while (true) {
         select { // Each case passively waits on an event:
@@ -200,6 +205,7 @@ void softblinker_pwm_button_client_task (
             // BUTTON PRESSES
             //
             case i_buttons_in[int iof_button].button (const button_action_t button_action) : {
+                bool write_LEDs_intensity_and_period = false;
 
                 // -----------------------------------------------------------------------------------------------------------------------------
                 // BUTTONS          | LEFT                          | CENTER                                 | RIGHT
@@ -300,7 +306,6 @@ void softblinker_pwm_button_client_task (
                                         params[ix].start_LED_at   = start_LED_at_now[ix];
                                         params[ix].transition_pwm = slide_transition_pwm; // LEDs out of phase, and sliding PWM: ok combination
                                     }
-
                                     LED_phase = IN_PHASE;
                                 } else if (LED_phase == IN_PHASE) {
                                     const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_DARK; // .. this are "180 degrees" out of phase
@@ -328,7 +333,7 @@ void softblinker_pwm_button_client_task (
                                 beep (outP1_beeper_high, 0, 200);
                                 beep (outP1_beeper_high, 50, 50);
 
-                                set_states_red_LED_to_default (states_red_LED); // Reset
+                                set_states_red_LED_to_default (params, states_red_LED); // Reset
                                 params[IOF_RED_LED].intensity_steps = DEFAULT_INTENSITY_STEPS;
                             } else {}
                         } break;
@@ -351,7 +356,7 @@ void softblinker_pwm_button_client_task (
                                 case state_red_LED_default: {
 
                                     set_params_to_default (params);
-                                    set_states_red_LED_to_default (states_red_LED);
+                                    set_states_red_LED_to_default (params, states_red_LED);
                                 } break;
 
                                 case state_red_LED_steps_0012: {
@@ -365,7 +370,7 @@ void softblinker_pwm_button_client_task (
                                 case state_red_LED_steps_1000: {
                                     params[IOF_RED_LED].intensity_steps             = intensity_steps_list[states_red_LED.iOf_intensity_steps_list_red_LED];
                                     states_red_LED.iOf_intensity_steps_list_red_LED = (states_red_LED.iOf_intensity_steps_list_red_LED + 1) % NUM_INTENSITY_STEPS; // For next time
-                                    write_LEDs_intensity_and_period = true;
+                                    write_LEDs_intensity_and_period                 = true;
                                 } break;
 
                                 case state_red_LED_half_range: {

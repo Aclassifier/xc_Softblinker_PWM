@@ -103,6 +103,8 @@
                 const transition_pwm_e  transition_pwm);
     } pwm_if;
 
+    #define DO_PULSE_ON_START_SYNCH_MS 1 // 0 or 1
+
     #if (CONFIG_NUM_TASKS_PER_LED==2)
         #if (CONFIG_BARRIER==1)
             [[combinable]]

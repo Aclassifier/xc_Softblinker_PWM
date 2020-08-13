@@ -261,6 +261,12 @@ period_ms_to_one_step_ticks (
                             inc_steps = DEC_ONE_DOWN;
                             now_intensity = max_intensity;
                             if (do_synchronization == synch_active) { // First this..
+                                #if (DO_PULSE_ON_START_SYNCH_MS > 0)
+                                    #warning DO_PULSE_ON_START_SYNCH_MS
+                                    out_port_toggle_on_direction_change <: 0; // ..then this
+                                    delay_milliseconds (DO_PULSE_ON_START_SYNCH_MS);
+                                    out_port_toggle_on_direction_change <: 1; // ..then this
+                                #endif
                                 blocking_chan_barrier_synchronize (c_barrier, null);
                                 tmr :> timeout; // restart timer
                                 timeout += one_step_at_intervals_ticks;
@@ -270,6 +276,11 @@ period_ms_to_one_step_ticks (
                             inc_steps = INC_ONE_UP;
                             now_intensity = min_intensity;
                             if (do_synchronization == synch_active) { // First this.
+                                #if (DO_PULSE_ON_START_SYNCH_MS > 0)
+                                    out_port_toggle_on_direction_change <: 1; // ..then this
+                                    delay_milliseconds (DO_PULSE_ON_START_SYNCH_MS);
+                                    out_port_toggle_on_direction_change <: 0; // ..then this
+                                #endif
                                 blocking_chan_barrier_synchronize (c_barrier, null);
                                  tmr :> timeout; // restart timer
                                  timeout += one_step_at_intervals_ticks;
@@ -357,8 +368,8 @@ period_ms_to_one_step_ticks (
                             do_synchronization = do_synchronization_;
 
                             // Printing disturbs update messages above, so it will appear to "blink"
-                            debug_print ("%u set_LED_period_linear_ms %u (%u, %d) min %u now %d max %u\n",
-                                    id_task, period_ms, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
+                            debug_print ("%u set_LED_period_linear_ms %u->%u (ticks %u) (%u, %d) min %u now %d max %u\n",
+                                    id_task, period_ms_, period_ms, one_step_at_intervals_ticks, do_next_intensity_at_intervals, inc_steps, min_intensity, now_intensity, max_intensity);
                         } else {
                             // No user code
                             debug_print ("%u set_LED_period_linear_ms do_next_intensity_at_intervals false\n", id_task);
