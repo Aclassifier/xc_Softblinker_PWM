@@ -217,7 +217,7 @@ void softblinker_pwm_button_client_task (
                 // released_now     | ...                           | if LEFT or RIGHT pressed_now handle it | ...
                 //                  | ...                           | else swap phase and start black/full   | ...
                 // -----------------------------------------------------------------------------------------------------------------------------
-                // pressed_for_long | Clear state_red_LED_e         | Increase state_red_LED_e               | ...
+                // pressed_for_long | Clear to init state           | Increase state_red_LED_e               | ...
                 // -----------------------------------------------------------------------------------------------------------------------------
 
                 buttons_action[iof_button] = button_action;
@@ -330,13 +330,12 @@ void softblinker_pwm_button_client_task (
                     switch (iof_button) {
 
                         case IOF_BUTTON_LEFT: {
-                            if (states_red_LED.state_red_LED != state_red_LED_default) { // reset long button red LED state (PWM=007 up here)
-                                beep (outP_beeper_high, 0, 200);
-                                beep (outP_beeper_high, 50, 50);
+                            beep (outP_beeper_high,  0, 200);
+                            beep (outP_beeper_high, 50, 100);
 
-                                set_states_red_LED_to_default (params, states_red_LED, synch_all); // Reset
-                                params[IOF_RED_LED].intensity_steps = DEFAULT_INTENSITY_STEPS;
-                            } else {}
+                            set_params_to_default (params);
+                            set_states_red_LED_to_default (params, states_red_LED, synch_all);
+                            write_LEDs_intensity_and_period = true;
                         } break;
 
                         case IOF_BUTTON_CENTER: { // IOF_RED_LED:
@@ -355,6 +354,7 @@ void softblinker_pwm_button_client_task (
 
                             switch (states_red_LED.state_red_LED) {
                                 case state_red_LED_default: {
+                                    beep (outP_beeper_high, 50, 100);
 
                                     set_params_to_default (params);
                                     set_states_red_LED_to_default (params, states_red_LED, synch_all);

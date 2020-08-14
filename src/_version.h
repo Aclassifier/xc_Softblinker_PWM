@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.4.5" // Not used
-#define AUDIOMUX_VERSION_NUM   0045  // Not used either
+#define AUDIOMUX_VERSION_STR "0.4.6" // Not used
+#define AUDIOMUX_VERSION_NUM   0046  // Not used either
 
+// 0046 14Aug2020          Now left button for long clears all state to init
 // 0045 14Aug2020          state_red_LED_e new changed, half_range is now not taken into next state. Compiled as (222) plus CONFIG_BARRIER==2 (channels)
 //                         Constraints: C:8/6 T:10/6 C:32/11 M:11096 S:1532 C:8600 D:964
 // 0044 14Aug2020          outP_external_blue_led_high is new, it's on when synch_active
