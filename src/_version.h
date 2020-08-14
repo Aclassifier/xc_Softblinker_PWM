@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.4.3" // Not used
-#define AUDIOMUX_VERSION_NUM   0043  // Not used either
+#define AUDIOMUX_VERSION_STR "0.4.4" // Not used
+#define AUDIOMUX_VERSION_NUM   0044  // Not used either
 
+// 0044 14Aug2020          outP_external_blue_led_high is new, it's on when synch_active
 // 0043 13Aug2020          Now starting with 10 seconds period. Much nicer!
 // 0042 13Aug2020          Have tested a lot, with scope, and needed to reset to synch_none as well. Should probably have a LED when synched
 // 0041 13Aug2020          Flashed

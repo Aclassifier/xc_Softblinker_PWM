@@ -38,13 +38,13 @@
 // ---
 
 #if (IS_MYTARGET == IS_MYTARGET_XCORE_XA_MODULE)
-    out buffered port:1 outP1_d4_led      = on tile[0]: XS1_PORT_1F; // xCORE XA J1 D13 XCORE-XA-MODULE LED D4 (LOW IS ON)
+    out buffered port:1 outP_d4_led      = on tile[0]: XS1_PORT_1F; // xCORE XA J1 D13 XCORE-XA-MODULE LED D4 (LOW IS ON)
     //
     in  buffered port:1 inP_button_left   = on tile[0]: XS1_PORT_1K; // External xCORE XA J9 P34. XCORE-XA-MODULE EXTERNAL BUTTON1
     in  buffered port:1 inP_button_center = on tile[0]: XS1_PORT_1O; // External xCORE XA J9 P38. XCORE-XA-MODULE EXTERNAL BUTTON2
     in  buffered port:1 inP_button_right  = on tile[0]: XS1_PORT_1P; // External xCORE XA J9 P39. XCORE-XA-MODULE EXTERNAL BUTTON3
 
-    #define red_LED outP1_d4_led
+    #define red_LED outP_d4_led
 
 #elif (IS_MYTARGET == IS_MYTARGET_XCORE_200_EXPLORER)
 
@@ -65,23 +65,23 @@
 
 
     // ALL TILE/SLICE-0 1-BIT PORTS ON THE XCORE-200-EXPLORER (4,8,16 and 32 bit ports, see manual)
-    //                                                                                 ### Availability remarks
-    //                                                    on tile[0]: XS1_PORT_1A; // (*0) FLASH only, MISO
-    //                                                    on tile[0]: XS1_PORT_1B; // (*0) FLASH only, CS
-    //                                                    on tile[0]: XS1_PORT_1C; // (*0) FLASH only, CLK
-    //                                                    on tile[0]: XS1_PORT_1D; // (*0) MOSI
-    //                                                    on tile[0]: XS1_PORT_1E; // (*1) GPIO-J1.PIN39
-    //                                                    on tile[0]: XS1_PORT_1F; // (*2) GPIO-J1.PIN37
-    out buffered port:1 outP1_external_yellow_led       = on tile[0]: XS1_PORT_1G; //      GPIO-J1.PIN35 LED 470R to 3V3. LOW IS ON
-    out buffered port:1 outP1_external_red_led          = on tile[0]: XS1_PORT_1H; //      GPIO-J1.PIN33 LED 470R to 3V3. LOW IS ON
-    out buffered port:1 outP1_external_yellow_dirchange = on tile[0]: XS1_PORT_1I; //      GPIO-J1.PIN23 Only for the scope!
-    out buffered port:1 outP1_external_red_dirchange    = on tile[0]: XS1_PORT_1J; //      GPIO-J1.PIN21 Only for the scope!
-    //                                                    on tile[0]: XS1_PORT_1K; //      GPIO-J1.PIN19
-    //                                                    on tile[0]: XS1_PORT_1L; //      GPIO-J1.PIN17
-    in buffered port:1  inP_button_left                 = on tile[0]: XS1_PORT_1M; // (*3) GPIO-J1.PIN63 (B1)
-    in buffered port:1  inP_button_center               = on tile[0]: XS1_PORT_1N; // (*3) GPIO-J1.PIN61 (B3)
-    in buffered port:1  inP_button_right                = on tile[0]: XS1_PORT_1O; //      GPIO-J1.PIN59 (B2)
-    out buffered port:1 outP1_beeper_high               = on tile[0]: XS1_PORT_1P; //      GPIO-J1.PIN57 Beeps when line is high 3V3. 310 uA and 1k in series
+    //                                                                                ### Availability remarks
+    //                                                   on tile[0]: XS1_PORT_1A; // (*0) FLASH only, MISO
+    //                                                   on tile[0]: XS1_PORT_1B; // (*0) FLASH only, CS
+    //                                                   on tile[0]: XS1_PORT_1C; // (*0) FLASH only, CLK
+    //                                                   on tile[0]: XS1_PORT_1D; // (*0) MOSI
+    //                                                   on tile[0]: XS1_PORT_1E; // (*1) GPIO-J1.PIN39
+    //                                                   on tile[0]: XS1_PORT_1F; // (*2) GPIO-J1.PIN37
+    out buffered port:1 outP_external_yellow_led       = on tile[0]: XS1_PORT_1G; //      GPIO-J1.PIN35 LED 470R to 3V3. LOW IS ON
+    out buffered port:1 outP_external_red_led          = on tile[0]: XS1_PORT_1H; //      GPIO-J1.PIN33 LED 470R to 3V3. LOW IS ON
+    out buffered port:1 outP_external_yellow_dirchange = on tile[0]: XS1_PORT_1I; //      GPIO-J1.PIN23 Only for the scope!
+    out buffered port:1 outP_external_red_dirchange    = on tile[0]: XS1_PORT_1J; //      GPIO-J1.PIN21 Only for the scope!
+    //                                                   on tile[0]: XS1_PORT_1K; //      GPIO-J1.PIN19
+    out buffered port:1 outP_external_blue_led_high    = on tile[0]: XS1_PORT_1L; //      GPIO-J1.PIN17 LED_high_e. 1k to blue LED
+    in buffered port:1  inP_button_left                = on tile[0]: XS1_PORT_1M; // (*3) GPIO-J1.PIN63 (B1)
+    in buffered port:1  inP_button_center              = on tile[0]: XS1_PORT_1N; // (*3) GPIO-J1.PIN61 (B3)
+    in buffered port:1  inP_button_right               = on tile[0]: XS1_PORT_1O; //      GPIO-J1.PIN59 (B2)
+    out buffered port:1 outP_beeper_high               = on tile[0]: XS1_PORT_1P; //      GPIO-J1.PIN57 beep_high_e Beeps when line is high 3V3. 310 uA and 1k in series
     //
     // (*0) SPI pins NOT avaiable on any header, reserved for system usage
     // (*1) and (*2)
@@ -103,11 +103,11 @@
     //                                                    on tile[0]: XS1_PORT_1P; //      GPIO-J3.PIN6
     // (*0) Used by Ethernet RGMII for RJ45
 
-    #define yellow_LED outP1_external_yellow_led
-    #define red_LED    outP1_external_red_led
+    #define yellow_LED outP_external_yellow_led
+    #define red_LED    outP_external_red_led
 
-    #define yellow_DIRCHANGE outP1_external_yellow_dirchange // period
-    #define red_DIRCHANGE    outP1_external_red_dirchange    // period
+    #define yellow_DIRCHANGE outP_external_yellow_dirchange // period
+    #define red_DIRCHANGE    outP_external_red_dirchange    // period
 
 #endif
 
@@ -267,7 +267,7 @@
                             [[combine]]
                             par {
                                 // Not time-critical, sll share one core:
-                                softblinker_pwm_button_client_task (if_buttons, if_softblinker, outP1_beeper_high);
+                                softblinker_pwm_button_client_task (if_buttons, if_softblinker, outP_beeper_high, outP_external_blue_led_high);
 
                                 button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);
                                 button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]);
