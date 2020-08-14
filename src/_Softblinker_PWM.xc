@@ -61,19 +61,16 @@ typedef struct params_t {
 } params_t;
 
 typedef enum {
-    state_red_LED_default,                 // 0 beeep                          (*1)
-    state_red_LED_steps_0012,              // 1 beeep beep                     (*2) steps_0012
-    state_red_LED_steps_0100,              // 2 beeep beep beep                (*2) steps_0100
-    state_red_LED_steps_0256,              // 3 beeep beep beep beep           (*2) steps_0256
-    state_red_LED_steps_1000,              // 4 beeep beep beep beep beep      (*2) steps_1000 -> now done all NUM_INTENSITY_STEPS
-    state_red_LED_half_range,              // 5 beeep beep beep beep beep beep (*2)
-    state_red_LED_half_range_both_synched, // 6 beeep beeeep                   (*2)
+    state_red_LED_default,    // 0 beeep
+    state_red_LED_steps_0012, // 1 beeep beep                     steps_0012
+    state_red_LED_steps_0100, // 2 beeep beep beep                steps_0100
+    state_red_LED_steps_0256, // 3 beeep beep beep beep           steps_0256
+    state_red_LED_steps_1000, // 4 beeep beep beep beep beep      steps_1000 -> now done all NUM_INTENSITY_STEPS
+    state_red_LED_half_range, // 5 beeep beep beep beep beep beep
+    state_all_LEDs_synched,   // 6 beeep beeeep + BLUE LED ON!
     NUM_RED_LED_STATES // ==7 those above
     //
 } state_red_LED_e;
-//
-// (*1) IOF_BUTTON_LEFT   pressed_for_long, in that case an extra beep-beep
-// (*2) IOF_BUTTON_CENTER pressed_for_long
 
 typedef struct {
     unsigned        iOf_intensity_steps_list_red_LED;
@@ -108,13 +105,15 @@ void set_params_to_default (params_t params [CONFIG_NUM_SOFTBLIKER_LEDS]) {
 
 void set_states_red_LED_to_default (
         params_t         params [CONFIG_NUM_SOFTBLIKER_LEDS],
-        states_red_LED_t &states_red_LED) {
+        states_red_LED_t &states_red_LED,
+        synch_e          &synch_all) {
 
     states_red_LED.iOf_intensity_steps_list_red_LED = 0; // First, pointing to steps_0012
     states_red_LED.state_red_LED                    = state_red_LED_default;
+    synch_all                                       = DEFAULT_SYNCH;
 
     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-        params[ix].synch = DEFAULT_SYNCH;
+        params[ix].synch = synch_all;
     }
 }
 
@@ -178,7 +177,7 @@ void softblinker_pwm_button_client_task (
     LED_phase_e      LED_phase                          = IN_PHASE;
     bool             a_side_button_pressed_while_center = false;
     states_red_LED_t states_red_LED;
-    LED_high_e       blue_LED                           = LED_on;
+    synch_e          synch_all; // Single value to reflect that ALL LEDs or NO LED must be synched, else deadlock!
 
     const unsigned          period_ms_list       [PERIOD_MS_LIST_LEN]  = PERIOD_MS_LIST;
     const intensity_steps_e intensity_steps_list [NUM_INTENSITY_STEPS] = INTENSITY_STEPS_LIST;
@@ -188,17 +187,11 @@ void softblinker_pwm_button_client_task (
         buttons_action[ix] = BUTTON_ACTION_VOID;
     }
 
-    outP_external_blue_led_high <: blue_LED;
-
     set_params_to_default (params);
 
     write_to_pwm_softblinker (if_softblinker, params);
 
-    set_states_red_LED_to_default (params, states_red_LED);
-
-    delay_milliseconds (1000);
-    blue_LED = LED_off;
-    outP_external_blue_led_high <: blue_LED;
+    set_states_red_LED_to_default (params, states_red_LED, synch_all);
 
     while (true) {
         select { // Each case passively waits on an event:
@@ -341,9 +334,8 @@ void softblinker_pwm_button_client_task (
                                 beep (outP_beeper_high, 0, 200);
                                 beep (outP_beeper_high, 50, 50);
 
-                                set_states_red_LED_to_default (params, states_red_LED); // Reset
+                                set_states_red_LED_to_default (params, states_red_LED, synch_all); // Reset
                                 params[IOF_RED_LED].intensity_steps = DEFAULT_INTENSITY_STEPS;
-                                blue_LED = LED_off;
                             } else {}
                         } break;
 
@@ -365,8 +357,7 @@ void softblinker_pwm_button_client_task (
                                 case state_red_LED_default: {
 
                                     set_params_to_default (params);
-                                    set_states_red_LED_to_default (params, states_red_LED);
-                                    blue_LED = LED_off;
+                                    set_states_red_LED_to_default (params, states_red_LED, synch_all);
                                 } break;
 
                                 case state_red_LED_steps_0012: {
@@ -387,15 +378,10 @@ void softblinker_pwm_button_client_task (
                                     params[IOF_RED_LED].min_max_intensity_offset_divisor = OFFSET_DIVISOR_4;
                                 } break;
 
-                                case state_red_LED_half_range_both_synched: {
+                                case state_all_LEDs_synched: {
+                                    params[IOF_RED_LED].min_max_intensity_offset_divisor = OFFSET_DIVISOR_INFIN;
                                     beep (outP_beeper_high, 100, 300); // Loong extra beep for the last
-
-                                    // All tasks must be set to the same synch pattern, equal to avoid deadlock:
-                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                        params[ix].synch = synch_active;
-                                    }
-                                    blue_LED = LED_on;
-
+                                    synch_all = synch_active;
                                 } break;
 
                                 default : {} break; // Never here, no need to crash
@@ -417,10 +403,15 @@ void softblinker_pwm_button_client_task (
                 } // end of pressed_now, released_now and pressed_for_long list. I wish I had a folding editor!
 
                 if (write_LEDs_intensity_and_period) {
+                    // All tasks must be set to the same synch pattern, equal to avoid deadlock:
+                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                        params[ix].synch = synch_all;
+                    }
+                    outP_external_blue_led_high <: (synch_all == synch_active);
                     write_to_pwm_softblinker (if_softblinker, params);
                 } else {}
 
-                outP_external_blue_led_high <: blue_LED;
+
             } break; // select i_buttons_in
         }
     }

@@ -260,32 +260,47 @@ period_ms_to_one_step_ticks (
                         if (now_intensity >= max_intensity) {
                             inc_steps = DEC_ONE_DOWN;
                             now_intensity = max_intensity;
-                            if (do_synchronization == synch_active) { // First this..
-                                #if (DO_PULSE_ON_START_SYNCH_MS > 0)
-                                    #warning DO_PULSE_ON_START_SYNCH_MS
-                                    out_port_toggle_on_direction_change <: 0; // ..then this
-                                    delay_milliseconds (DO_PULSE_ON_START_SYNCH_MS);
-                                    out_port_toggle_on_direction_change <: 1; // ..then this
+                            if (do_synchronization == synch_active) {
+
+                                // If period_ms differ then the longest period will rule.
+                                // The shortest will get its PWM done, then wait.
+                                // For the longest this waiting could last
+                                // (SOFTBLINK_PERIOD_MAX_MS - SOFTBLINK_PERIOD_MIN_MS)/2 = 4.9 seconds?)
+                                // This is also seen on heavy unrest of the analogue uA meter between the LEDs
+                                // Since this solution is blocking, the button press result also will wait that long!
+
+                                #if (DO_PULSE_ON_START_SYNCH == 1)
+                                    #if (WARNINGS==1)
+                                        #warning DO_PULSE_ON_START_SYNCH
+                                    #endif
+                                    out_port_toggle_on_direction_change <: 0;  // 500-600 ns from here..
+                                    blocking_chan_barrier_synchronize (c_barrier, null);
+                                    out_port_toggle_on_direction_change <: 1;  // ..to here for first to barrier
+                                #else
+                                    blocking_chan_barrier_synchronize (c_barrier, null);
                                 #endif
-                                blocking_chan_barrier_synchronize (c_barrier, null);
+
                                 tmr :> timeout; // restart timer
                                 timeout += one_step_at_intervals_ticks;
                             } else {}
-                            out_port_toggle_on_direction_change <: 0; // ..then this
+                            out_port_toggle_on_direction_change <: 0;
                         } else if (now_intensity <= min_intensity) {
                             inc_steps = INC_ONE_UP;
                             now_intensity = min_intensity;
-                            if (do_synchronization == synch_active) { // First this.
-                                #if (DO_PULSE_ON_START_SYNCH_MS > 0)
-                                    out_port_toggle_on_direction_change <: 1; // ..then this
-                                    delay_milliseconds (DO_PULSE_ON_START_SYNCH_MS);
-                                    out_port_toggle_on_direction_change <: 0; // ..then this
+                            if (do_synchronization == synch_active) {
+                                // See comments above
+                                #if (DO_PULSE_ON_START_SYNCH == 1)
+                                    out_port_toggle_on_direction_change <: 1;
+                                    blocking_chan_barrier_synchronize (c_barrier, null);
+                                    out_port_toggle_on_direction_change <: 0;
+                                #else
+                                    blocking_chan_barrier_synchronize (c_barrier, null);
                                 #endif
-                                blocking_chan_barrier_synchronize (c_barrier, null);
-                                 tmr :> timeout; // restart timer
-                                 timeout += one_step_at_intervals_ticks;
+
+                                tmr :> timeout; // restart timer
+                                timeout += one_step_at_intervals_ticks;
                              } else {}
-                            out_port_toggle_on_direction_change <: 1; // ..then this
+                            out_port_toggle_on_direction_change <: 1;
                         } else {}
 
                         now_intensity += inc_steps;
