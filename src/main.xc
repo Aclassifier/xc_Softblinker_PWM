@@ -188,9 +188,10 @@
         softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS];
 
         #if (CONFIG_BARRIER==1)
-                barrier_if if_barrier[CONFIG_NUM_SOFTBLIKER_LEDS];
+            barrier_do_if   if_do_barrier  [CONFIG_NUM_SOFTBLIKER_LEDS];
+            barrier_done_if if_done_barrier[CONFIG_NUM_SOFTBLIKER_LEDS];
         #elif (CONFIG_BARRIER==2)
-                chan c_barrier[CONFIG_NUM_SOFTBLIKER_LEDS];
+            chan c_barrier[CONFIG_NUM_SOFTBLIKER_LEDS];
         #endif
 
         par {
@@ -258,9 +259,9 @@
                         on tile[0]: {
                             // [[combine]] error: `c_barrier' used between two combined tasks
                             par {
-                                barrier_if_task             (if_barrier);
-                                softblinker_task_if_barrier (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED], yellow_DIRCHANGE, if_barrier [IOF_YELLOW_LED]);
-                                softblinker_task_if_barrier (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED],    red_DIRCHANGE,    if_barrier [IOF_RED_LED]);
+                                barrier_if_server_task      (if_do_barrier, if_done_barrier);
+                                softblinker_task_if_barrier (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED], yellow_DIRCHANGE, if_do_barrier [IOF_YELLOW_LED], if_done_barrier [IOF_YELLOW_LED]);
+                                softblinker_task_if_barrier (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED],    red_DIRCHANGE,    if_do_barrier [IOF_RED_LED],    if_done_barrier [IOF_RED_LED]);
                             }
                         }
                     #elif (CONFIG_BARRIER==2)
@@ -279,7 +280,7 @@
                         on tile[0]: {
                             // [[combine]] error: `c_barrier' used between two combined tasks
                             par {
-                                barrier_chan_task             (c_barrier);
+                                barrier_donehan_task             (c_barrier);
                                 softblinker_task_chan_barrier (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED], yellow_DIRCHANGE, c_barrier [IOF_YELLOW_LED]);
                                 softblinker_task_chan_barrier (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED],    red_DIRCHANGE,    c_barrier [IOF_RED_LED]);
                             }

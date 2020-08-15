@@ -48,11 +48,12 @@ period_ms_to_one_step_ticks (
 
     [[combinable]]
     void softblinker_task_if_barrier (
-            const unsigned        id_task, // For printing only
-            client pwm_if         if_pwm,
-            server softblinker_if if_softblinker,
-            out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
-            server barrier_if     if_barrier)
+            const unsigned         id_task, // For printing only
+            client pwm_if          if_pwm,
+            server softblinker_if  if_softblinker,
+            out buffered port:1    out_port_toggle_on_direction_change, // Toggle when LED max
+            client barrier_do_if   if_do_barrier,
+            server barrier_done_if if_done_barrier)
     {
         debug_print ("%u softblinker_task started\n", id_task);
 
@@ -69,8 +70,7 @@ period_ms_to_one_step_ticks (
         intensity_steps_e intensity_steps;
         unsigned          frequency_Hz;
         synch_e           do_synchronization;
-        bool              updated_do_synchronization;
-        synch_e           await_synchronized;
+        bool              await_synchronized;
         // ---
 
         do_next_intensity_at_intervals   = false;
@@ -82,8 +82,7 @@ period_ms_to_one_step_ticks (
         intensity_steps                  = DEFAULT_INTENSITY_STEPS;
         frequency_Hz                     = DEFAULT_PWM_FREQUENCY_HZ;
         do_synchronization               = synch_none;
-        updated_do_synchronization = synch_none;
-        await_synchronized               = synch_none;
+        await_synchronized               = false;
 
         one_step_at_intervals_ticks = period_ms_to_one_step_ticks (DEFAULT_SOFTBLINK_PERIOD_MS, intensity_steps);
 
@@ -99,24 +98,55 @@ period_ms_to_one_step_ticks (
                     // That's why both tests include "above" (>) and "below" (<)
 
                     if (now_intensity >= max_intensity) {
+                        inc_steps = DEC_ONE_DOWN;
+                        now_intensity = max_intensity;
                         if (do_synchronization == synch_active) {
-                            do_next_intensity_at_intervals = false;
-                            if_barrier.awaiting_synch();
-                        } else {
-                            inc_steps = DEC_ONE_DOWN;
-                            now_intensity = max_intensity;
-                            out_port_toggle_on_direction_change <: 0;
-                        }
 
+                            // If period_ms differ then the longest period will rule.
+                            // The shortest will get its PWM done, then wait.
+                            // For the longest this waiting could last
+                            // (SOFTBLINK_PERIOD_MAX_MS - SOFTBLINK_PERIOD_MIN_MS)/2 = 4.9 seconds?)
+                            // This is also seen on heavy unrest of the analogue uA meter between the LEDs
+                            // Since this solution is NOT blocking (contary to the c_barrier channel solution),
+                            // the button press result NOT will wait that long!
+
+                            #if (DO_PULSE_ON_START_SYNCH == 1)
+                                #if (WARNINGS==1)
+                                    #warning DO_PULSE_ON_START_SYNCH
+                                #endif
+                                out_port_toggle_on_direction_change <: 0;  // 500-600 ns from here..
+                                if (not await_synchronized) {
+                                    if_do_barrier.awaiting_synch (enroll_barrier);
+                                } else {}
+                                out_port_toggle_on_direction_change <: 1;  // ..to here for first to barrier
+                            #else
+                                if_do_barrier.awaiting_synch (enroll_barrier);
+                            #endif
+                        } else {}
+                        do_next_intensity_at_intervals = false;
+                        out_port_toggle_on_direction_change <: 0;
                     } else if (now_intensity <= min_intensity) {
                         inc_steps = INC_ONE_UP;
                         now_intensity = min_intensity;
+                        if (do_synchronization == synch_active) {
+                            // See comments above
+                            #if (DO_PULSE_ON_START_SYNCH == 1)
+                                out_port_toggle_on_direction_change <: 1;
+                                if (not await_synchronized) {
+                                    if_do_barrier.awaiting_synch (enroll_barrier);
+                                } else {}
+                                out_port_toggle_on_direction_change <: 0;
+                            #else
+                                if_do_barrier.awaiting_synch (enroll_barrier);
+                            #endif
+                         } else {}
+                        do_next_intensity_at_intervals = false;
                         out_port_toggle_on_direction_change <: 1;
                     } else {}
 
                     now_intensity += inc_steps;
 
-                    // [1..100] [99..0] (Eaxmple for steps_0100)
+                    // [1..100] [99..0] (Example for steps_0100)
 
                     if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, (intensity_t) now_intensity, transition_pwm);
 
@@ -189,6 +219,14 @@ period_ms_to_one_step_ticks (
                         one_step_at_intervals_ticks = period_ms_to_one_step_ticks (period_ms, intensity_steps);
                         transition_pwm = transition_pwm_;
 
+                        if ((do_synchronization == synch_active) and (do_synchronization_ == synch_none)) {
+                            // Stopping synchronization may cause deadlock if we don't resign gracefully
+                            if (not await_synchronized) {
+                                if_do_barrier.awaiting_synch (global_resign_barrier); // Do enroll_barrier for all other participants
+                                await_synchronized = true;
+                            } else {}
+                        }
+
                         do_synchronization = do_synchronization_;
 
                         // Printing disturbs update messages above, so it will appear to "blink"
@@ -199,8 +237,18 @@ period_ms_to_one_step_ticks (
                         debug_print ("%u set_LED_period_linear_ms do_next_intensity_at_intervals false\n", id_task);
                     }
                 } break;
-                case if_barrier.allow (void) : {} break; // TODO
-                case if_barrier.synchronized (void) : {} break; // TODO
+
+                // [[guarded]] not necessary here (but costs "nothing")
+                case if_done_barrier.synchronized (const synch_done_e synch_done_not_used) : {
+                    // barrier_left
+                    // barrier_global_resigned
+
+                    await_synchronized             = false;
+                    do_next_intensity_at_intervals = true;
+
+                    tmr     :> timeout; // restart timer
+                    timeout += one_step_at_intervals_ticks;
+                } break;
             }
         }
     }
@@ -273,10 +321,10 @@ period_ms_to_one_step_ticks (
                                     #warning DO_PULSE_ON_START_SYNCH
                                 #endif
                                 out_port_toggle_on_direction_change <: 0;  // 500-600 ns from here..
-                                blocking_chan_barrier_synchronize (c_barrier, null);
+                                blocking_chan_barrier_do_synchronize (c_barrier, null);
                                 out_port_toggle_on_direction_change <: 1;  // ..to here for first to barrier
                             #else
-                                blocking_chan_barrier_synchronize (c_barrier, null);
+                                blocking_chan_barrier_do_synchronize (c_barrier, null);
                             #endif
 
                             tmr :> timeout; // restart timer
@@ -290,10 +338,10 @@ period_ms_to_one_step_ticks (
                             // See comments above
                             #if (DO_PULSE_ON_START_SYNCH == 1)
                                 out_port_toggle_on_direction_change <: 1;
-                                blocking_chan_barrier_synchronize (c_barrier, null);
+                                blocking_chan_barrier_do_synchronize (c_barrier, null);
                                 out_port_toggle_on_direction_change <: 0;
                             #else
-                                blocking_chan_barrier_synchronize (c_barrier, null);
+                                blocking_chan_barrier_do_synchronize (c_barrier, null);
                             #endif
 
                             tmr :> timeout; // restart timer
