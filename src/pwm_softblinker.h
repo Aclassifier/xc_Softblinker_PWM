@@ -107,23 +107,22 @@
     #define DO_PULSE_ON_START_SYNCH 1 // 0 or 1
 
     #if (CONFIG_NUM_TASKS_PER_LED==2)
-        #if (CONFIG_BARRIER==1)
-            [[combinable]]
-            void softblinker_task (
-                    const unsigned        id_task, // For printing only
-                    client pwm_if         if_pwm,
-                    server softblinker_if if_softblinker,
-                    out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
-                    server barrier_if     if_barrier);
-        #elif (CONFIG_BARRIER==2)
-            [[combinable]]
-            void softblinker_task (
-                    const unsigned        id_task, // For printing only
-                    client pwm_if         if_pwm,
-                    server softblinker_if if_softblinker,
-                    out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
-                    chanend               c_barrier);
-        #endif
+
+        [[combinable]]
+        void softblinker_task_if_barrier (
+                const unsigned        id_task, // For printing only
+                client pwm_if         if_pwm,
+                server softblinker_if if_softblinker,
+                out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
+                server barrier_if     if_barrier);
+
+        [[combinable]]
+        void softblinker_task_chan_barrier (
+                const unsigned        id_task, // For printing only
+                client pwm_if         if_pwm,
+                server softblinker_if if_softblinker,
+                out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
+                chanend               c_barrier);
 
         // Only used when CONFIG_NUM_TASKS_PER_LED==2
         [[combinable]]

@@ -12,10 +12,11 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.4.6" // Not used
-#define AUDIOMUX_VERSION_NUM   0046  // Not used either
+#define AUDIOMUX_VERSION_STR "0.4.7" // Not used
+#define AUDIOMUX_VERSION_NUM   0047  // Not used either
 
-// 0046 14Aug2020          Now left button for long clears all state to init
+// 0047 15Aug2020          Taking up softblinker_task_if_barrier again. This compiles. Not runnable.
+// 0046 14Aug2020          Now left button for long clears all state to init. Works with softblinker_task (->softblinker_task_chan_barrier next commit)
 // 0045 14Aug2020          state_red_LED_e new changed, half_range is now not taken into next state. Compiled as (222) plus CONFIG_BARRIER==2 (channels)
 //                         Constraints: C:8/6 T:10/6 C:32/11 M:11096 S:1532 C:8600 D:964
 // 0044 14Aug2020          outP_external_blue_led_high is new, it's on when synch_active
@@ -33,7 +34,7 @@
 // 0032 11Aug2020          Last version with init of array of struct as
 //                         const mystruct array[NUM] = {{0,1,200,3},{0,200,1,3}} since it's not safe
 // 0031 10Aug2020          states_red_LED_t and handling. Not tested
-// 0029 09Aug2020          synchronize and barrier_task works with CONFIG_BARRIER==2
+// 0029 09Aug2020          synchronize and barrier_chan_task works with CONFIG_BARRIER==2
 // 0028 09Aug2020          CONFIG_BARRIER==2 this compiles with
 //                         Constraints: C:8/6 T:10/6 C:32/11 M:9544 S:1404 C:7196 D:944
 //                         warning: route(0)     Pass with 14 unknowns, Num Paths: 8, Slack: 208.0 ns, Required: 1.0 us, Worst: 792.0 ns, Min Core Frequency: 396 MHz
