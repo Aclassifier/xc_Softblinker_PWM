@@ -43,6 +43,10 @@
     //     otherwise it may behave incorrectly due to overlow or underflow. This means that a timer can be used to
     //     measure up to a total of 2exp31 / (100 mill) = 21s.
 
+    typedef enum {beep_off = 0, beep_now = 1} beep_high_e; // Must be {0,1} like this! Using boolean expression on it
+    typedef enum {LED_off  = 0, LED_on   = 1} LED_high_e;  // Must be {0,1} like this! Using boolean expression on it
+    typedef enum {pin_low  = 0, pin_high = 1} port_pin_e;  // Must be {0,1} like this! Using boolean expression on it
+
 #endif
 
 #define IS_MYTARGET_VOID               0
@@ -102,7 +106,7 @@
                                        // (227):                Constraints:   C:   4   T:   4    C:      6    Slack: 760.0 ns
                                        // (228):                Constraints:   C:  3    T:  3     C:     3     Slack: 760.0 ns
 
-#define CONFIG_BARRIER 2 // 0 No barrier
+#define CONFIG_BARRIER 1 // 0 No barrier
                          // 1 interface  Total 12 chanends
                          // 2 chan       Total 11 chanends
 
