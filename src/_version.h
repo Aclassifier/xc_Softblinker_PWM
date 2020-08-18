@@ -12,17 +12,20 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.4.9" // Not used
-#define AUDIOMUX_VERSION_NUM   0049  // Not used either
+#define AUDIOMUX_VERSION_STR "0.5.0" // Not used
+#define AUDIOMUX_VERSION_NUM   0050  // Not used either
 
+// 0050 18Aug2020          softblinker_task_if_barrier   fails with an intersting crash
+//                         softblinker_task_if_barrier_0 just stops (deadlocks)
+//                         softblinker_task_chan_barrier works
 // 0049 16Aug2020          CONFIG_BARRIER 1 (interface). See main.xc, line 261
-//                         [[combined]] barrier_if_server_task and two softblinker_task_if_barrier
+//                         [[combined]] barrier_if_task and two softblinker_task_if_barrier
 //                             Constraints: C:8/4 T:10/4 C:32/6 M:12704 S:1812 C:9880 D:1012
 //                             Pass with 14 unknowns, Num Paths: 8, Slack: 400.0 ns, Required: 1.0 us, Worst: 600.0 ns, Min Core Frequency: 300 MHz
 //                         Not [[combined]]
 //                             Constraints: C:8/6 T:10/6 C:32/12 M:12336 S:1948 C:9356 D:1032
 //                             Pass with 14 unknowns, Num Paths: 8, Slack: 208.0 ns, Required: 1.0 us, Worst: 792.0 ns, Min Core Frequency: 396 MHz
-// 0048 15Aug2020          barrier_if_server_task first version (not tested). 12 chanends
+// 0048 15Aug2020          barrier_if_task first version (not tested). 12 chanends
 // 0047 15Aug2020          Taking up softblinker_task_if_barrier again. This compiles. Not runnable.
 // 0046 14Aug2020          Now left button for long clears all state to init. Works with softblinker_task (->softblinker_task_chan_barrier next commit)
 // 0045 14Aug2020          state_red_LED_e new changed, half_range is now not taken into next state. Compiled as (222) plus CONFIG_BARRIER==2 (channels)

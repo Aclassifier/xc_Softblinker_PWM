@@ -260,7 +260,7 @@
                             // [[combine]] error: `c_barrier' used between two combined tasks
                             [[combine]] // Ok when interface
                             par {
-                                barrier_if_server_task      (if_do_barrier, if_done_barrier);
+                                barrier_if_task      (if_do_barrier, if_done_barrier);
                                 softblinker_task_if_barrier (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED], yellow_DIRCHANGE, if_do_barrier [IOF_YELLOW_LED], if_done_barrier [IOF_YELLOW_LED]);
                                 softblinker_task_if_barrier (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED],    red_DIRCHANGE,    if_do_barrier [IOF_RED_LED],    if_done_barrier [IOF_RED_LED]);
                             }

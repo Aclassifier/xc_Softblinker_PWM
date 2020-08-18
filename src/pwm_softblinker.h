@@ -118,6 +118,15 @@
                 server barrier_done_if if_done_barrier);
 
         [[combinable]]
+        void softblinker_task_if_barrier_0 (
+                const unsigned         id_task, // For printing only
+                client pwm_if          if_pwm,
+                server softblinker_if  if_softblinker,
+                out buffered port:1    out_port_toggle_on_direction_change, // Toggle when LED max
+                client barrier_do_if   if_do_barrier,
+                server barrier_done_if if_done_barrier);
+
+        [[combinable]]
         void softblinker_task_chan_barrier (
                 const unsigned        id_task, // For printing only
                 client pwm_if         if_pwm,
