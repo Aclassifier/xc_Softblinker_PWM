@@ -107,6 +107,7 @@
     #define DO_PULSE_ON_START_SYNCH 1 // 0 or 1
 
     #if (CONFIG_NUM_TASKS_PER_LED==2)
+        // softblinker_task_if_barrier TODO: This is the CARRIER, and I use a TRIANGULAR WAVE
 
         [[combinable]]
         void softblinker_task_if_barrier (
@@ -135,6 +136,8 @@
                 chanend               c_barrier);
 
         // Only used when CONFIG_NUM_TASKS_PER_LED==2
+        // TODO This controls the DUTY CYCLE
+        // TODO There is no deadband between the two LEDs, no period that removes overlap, not even when synchronized
         [[combinable]]
         void pwm_for_LED_task (
                 const unsigned      id_task, // For printing only

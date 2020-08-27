@@ -12,10 +12,11 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.5.0" // Not used
-#define AUDIOMUX_VERSION_NUM   0050  // Not used either
+#define AUDIOMUX_VERSION_STR "0.5.1" // Not used
+#define AUDIOMUX_VERSION_NUM   0051  // Not used either
 
-// 0050 18Aug2020          softblinker_task_if_barrier   fails with an intersting crash
+// 0051 27Aug2020          Before ging to Bud
+// 0050 18Aug2020          softblinker_task_if_barrier   fails with an intersting crash (log in source)
 //                         softblinker_task_if_barrier_0 just stops (deadlocks)
 //                         softblinker_task_chan_barrier works
 // 0049 16Aug2020          CONFIG_BARRIER 1 (interface). See main.xc, line 261
