@@ -262,10 +262,12 @@ void softblinker_pwm_button_client_task (
                     } // Outer switch
 
                     if (button_left_taken or button_right_taken) {
-                        beep (outP_beeper_high, 0, 100);
 
                         if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) { // double button action
+
+                            beep (outP_beeper_high, 0, 100);
                             a_side_button_pressed_while_center = true;
+
                             #if (CONFIG_NUM_SOFTBLIKER_LEDS==2)
                                 if (iof_LED == IOF_RED_LED) {
                                     params[IOF_YELLOW_LED].period_ms = params[IOF_RED_LED].period_ms; // set the other
@@ -277,6 +279,8 @@ void softblinker_pwm_button_client_task (
                             #endif
                         } else { // Standard
                             if (states_LED_views.state_LED_views == state_all_LEDs_stable_intensity) {
+
+                                beep (outP_beeper_high, 0, 50);
 
                                 const unsigned steps_10_percent = steps_0100/10;
                                 signed inc_dec_by;
@@ -318,6 +322,8 @@ void softblinker_pwm_button_client_task (
                                 // OBSERVE THAT LEDs will BLINK "RANDOMLY" UNTIL SETTLED if DEBUG_PRINT_GLOBAL_APP == 1
 
                             } else { // not state_all_LEDs_stable_intensity
+                                beep (outP_beeper_high, 0, 100);
+
                                 unsigned iof_period_ms = params[iof_LED].iof_period_ms_list;
 
                                 iof_period_ms = (iof_period_ms + 1) % PERIOD_MS_LIST_LEN;

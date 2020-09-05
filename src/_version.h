@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.5.2" // Not used
-#define AUDIOMUX_VERSION_NUM   0052  // Not used either
+#define AUDIOMUX_VERSION_STR "0.5.3" // Not used
+#define AUDIOMUX_VERSION_NUM   0053  // Not used either
 
+// 0053 05Sep2020          Shorter beep when state_all_LEDs_stable_intensity
 // 0052 05Sep2020          state_all_LEDs_stable_intensity now new, possible to use as a "lamp". 100 levels used. 1% is quite visible!
 // 0051 27Aug2020          Before ging to Bud
 // 0050 18Aug2020          softblinker_task_if_barrier   fails with an intersting crash (log in source)
