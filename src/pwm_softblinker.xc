@@ -445,6 +445,7 @@ void softblinker_task_if_barrier (
 
                         if (max_intensity == min_intensity) { // No INC_ONE_UP or INC_ONE_DOWN of sensitivity
                             do_next_intensity_at_intervals = false;
+                            now_intensity = intensity_steps;
                             if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, max_intensity, transition_pwm);
                         } else if (not do_next_intensity_at_intervals) {
                             do_next_intensity_at_intervals = true;
@@ -661,6 +662,7 @@ void softblinker_task_if_barrier (
 
                         if (max_intensity == min_intensity) { // No INC_ONE_UP or INC_ONE_DOWN of sensitivity
                             do_next_intensity_at_intervals = false;
+                            now_intensity = max_intensity;
                             if_pwm.set_LED_intensity (frequency_Hz, intensity_steps, max_intensity, transition_pwm);
                         } else if (not do_next_intensity_at_intervals) {
                             do_next_intensity_at_intervals = true;
@@ -674,8 +676,8 @@ void softblinker_task_if_barrier (
                     }
 
                     // Printing disturbs update messages above, so it will appear to "blink"
-                    debug_print ("%u set_LED_intensity steps ok %u steps %u (n %u, i %d) min %u now %d max %u \n",
-                                 id_task,                    ok, intensity_steps, do_next_intensity_at_intervals, inc_steps, min_intensity_, now_intensity, max_intensity_);
+                    debug_print ("%u set_LED_intensity steps ok %u steps %u (n %u, i %d) min %u now %d max %u freq %u\n",
+                                 id_task,                    ok, intensity_steps, do_next_intensity_at_intervals, inc_steps, min_intensity_, now_intensity, max_intensity_, frequency_Hz);
                 } break;
 
                 case if_softblinker.set_LED_period_linear_ms (
@@ -773,6 +775,8 @@ typedef enum {activated, deactivated} port_is_e;
             // #pragma ordered // May be used if not [[combinable]] to assure priority of the PWM, if that is wanted
             #pragma xta endpoint "start"
             select {
+
+                // THIS IS THE PWM. ALL THE REST IS JUST CONTROLLING IT
                 case (pwm_running) => tmr when timerafter(timeout) :> void: {
                     if (port_is == deactivated) {
                         #pragma xta endpoint "stop"
@@ -786,6 +790,7 @@ typedef enum {activated, deactivated} port_is_e;
                     }
                 } break;
 
+                // THIS IS ALL THE REST: CONTROLLING THE PWM
                 case if_pwm.set_LED_intensity (
                         const unsigned          frequency_Hz, // 0 -> actives port
                         const intensity_steps_e intensity_steps_,
@@ -799,12 +804,12 @@ typedef enum {activated, deactivated} port_is_e;
                     if (frequency_Hz == 0) {
                         pwm_running = false;
                         ACTIVATE_PORT(port_pin_sign);
-                    } else if (transition_pwm == slide_transition_pwm) {
-                        pwm_running = true;
-                        // else lock_transition_pwm:
-                    } else if (intensity_port_activated == intensity_steps) { // No need to involve any timerafter and get a short "off" blip
+                    } else if (intensity_port_activated == intensity_steps) { // (First this..) No need to involve any timerafter and get a short "off" blip
                         pwm_running = false;
                         ACTIVATE_PORT(port_pin_sign);
+                    } else if (transition_pwm == slide_transition_pwm) { // (..then this, since transition_pwm not set with set_LED_intensity_range)
+                        pwm_running = true;
+                        // else lock_transition_pwm:
                     } else if (intensity_port_activated == DEFAULT_DARK_INTENSITY) { // No need to involve any timerafter and get a short "on" blink
                         pwm_running = false;
                         DEACTIVATE_PORT(port_pin_sign);

@@ -92,6 +92,16 @@ signed in_range_signed (const signed value, const signed lowest, const signed hi
     return return_in_range;
 }
 
+unsigned in_range_unsigned_inc_dec (const unsigned value, const unsigned lowest, const unsigned highest, const signed inc_dec_by) {
+
+    signed return_in_range = (signed) value;
+
+    return_in_range += inc_dec_by; // increment when gt 0, decrement when lt 0
+    return_in_range = in_range_signed (return_in_range, (signed) lowest, (signed) highest);
+
+    return (unsigned) return_in_range;
+}
+
 {signed, bool, bool} in_range_signed_min_max_set (const signed value, const signed lowest, const signed highest) {
 
     signed     return_in_range;

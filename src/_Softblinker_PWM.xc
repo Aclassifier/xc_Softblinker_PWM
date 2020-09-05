@@ -61,22 +61,24 @@ typedef struct params_t {
 } params_t;
 
 typedef enum {
-    state_red_LED_default,    // 0 beeep
-    state_red_LED_steps_0012, // 1 beeep beep                     steps_0012
-    state_red_LED_steps_0100, // 2 beeep beep beep                steps_0100
-    state_red_LED_steps_0256, // 3 beeep beep beep beep           steps_0256
-    state_red_LED_steps_1000, // 4 beeep beep beep beep beep      steps_1000 -> now done all NUM_INTENSITY_STEPS
-    state_red_LED_half_range, // 5 beeep beep beep beep beep beep
-    state_all_LEDs_synched,   // 6 beeep beeeep + BLUE LED ON!
-    NUM_RED_LED_STATES // ==7 those above
+    state_red_LED_default,           // 0 beeep
+    state_all_LEDs_stable_intensity, // 1 beeep beep
+    state_red_LED_steps_0012,        // 2 beeep beep beep                     steps_0012
+    state_red_LED_steps_0100,        // 3 beeep beep beep beep                steps_0100
+    state_red_LED_steps_0256,        // 4 beeep beep beep beep beep           steps_0256
+    state_red_LED_steps_1000,        // 5 beeep beep beep beep beep beep      steps_1000 -> now done all NUM_INTENSITY_STEPS
+    state_red_LED_half_range,        // 6 beeep beep beep beep beep beep beep
+    state_all_LEDs_synched,          // 7 beeep beeeep + BLUE LED ON!
+    NUM_RED_LED_STATES // ==8 those above
     //
-} state_red_LED_e;
+} state_LED_views_e;
 
 typedef struct {
-    unsigned        iOf_intensity_steps_list_red_LED;
-    state_red_LED_e state_red_LED;
+    unsigned          iOf_intensity_steps_list_red_LED;
+    unsigned          stable_intensity_steps_0100;
+    state_LED_views_e state_LED_views;
     //
-} states_red_LED_t;
+} states_LED_views_t;
 
 #define OFFSET_DIVISOR_INFIN INT_MAX // 1/° = 0
 #define OFFSET_DIVISOR_4     4       // 1/4 offset down from max and up from min
@@ -103,14 +105,15 @@ void set_params_to_default (params_t params [CONFIG_NUM_SOFTBLIKER_LEDS]) {
 }
 
 
-void set_states_red_LED_to_default (
-        params_t         params [CONFIG_NUM_SOFTBLIKER_LEDS],
-        states_red_LED_t &states_red_LED,
-        synch_e          &synch_all) {
+void set_states_LED_views_to_default (
+        params_t           params [CONFIG_NUM_SOFTBLIKER_LEDS],
+        states_LED_views_t &states_LED_views,
+        synch_e            &synch_all) {
 
-    states_red_LED.iOf_intensity_steps_list_red_LED = 0; // First, pointing to steps_0012
-    states_red_LED.state_red_LED                    = state_red_LED_default;
-    synch_all                                       = DEFAULT_SYNCH;
+    states_LED_views.iOf_intensity_steps_list_red_LED = 0; // First, pointing to steps_0012
+    states_LED_views.state_LED_views                  = state_red_LED_default;
+    states_LED_views.stable_intensity_steps_0100      = steps_0100;
+    synch_all                                         = DEFAULT_SYNCH;
 
     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
         params[ix].synch = synch_all;
@@ -170,14 +173,14 @@ void softblinker_pwm_button_client_task (
 {
     beep (outP_beeper_high, 0, 250);
 
-    timer            tmr;
-    time32_t         time_ticks; // Ticks to 100 in 1 us
-    button_action_t  buttons_action [BUTTONS_NUM_CLIENTS];
-    params_t         params         [CONFIG_NUM_SOFTBLIKER_LEDS];
-    LED_phase_e      LED_phase                          = IN_PHASE;
-    bool             a_side_button_pressed_while_center = false;
-    states_red_LED_t states_red_LED;
-    synch_e          synch_all; // Single value to reflect that ALL LEDs or NO LED must be synched, else deadlock!
+    timer              tmr;
+    time32_t           time_ticks; // Ticks to 100 in 1 us
+    button_action_t    buttons_action [BUTTONS_NUM_CLIENTS];
+    params_t           params         [CONFIG_NUM_SOFTBLIKER_LEDS];
+    LED_phase_e        LED_phase                          = IN_PHASE;
+    bool               a_side_button_pressed_while_center = false;
+    states_LED_views_t states_LED_views;
+    synch_e            synch_all; // Single value to reflect that ALL LEDs or NO LED must be synched, else deadlock!
 
     const unsigned          period_ms_list       [PERIOD_MS_LIST_LEN]  = PERIOD_MS_LIST;
     const intensity_steps_e intensity_steps_list [NUM_INTENSITY_STEPS] = INTENSITY_STEPS_LIST;
@@ -191,7 +194,7 @@ void softblinker_pwm_button_client_task (
 
     write_to_pwm_softblinker (if_softblinker, params);
 
-    set_states_red_LED_to_default (params, states_red_LED, synch_all);
+    set_states_LED_views_to_default (params, states_LED_views, synch_all);
 
     while (true) {
         select { // Each case passively waits on an event:
@@ -210,14 +213,15 @@ void softblinker_pwm_button_client_task (
 
                 // -----------------------------------------------------------------------------------------------------------------------------
                 // BUTTONS          | LEFT                          | CENTER                                 | RIGHT
-                // -------------------------------------------------------------------------------------------|---------------------------------
+                // -----------------------------------------------------------------------------------------------------------------------------
                 // pressed_now      | if also CENTER set red period | ...                                    | if also CENTER set yellow period
-                //                  | else next yellow/left period  | ...                                    | else next red/right period
+                //                  | else next yellow/left period. | ...                                    | else next red/right period.
+                //                  | if steady light LEDs less     | ...                                    | if steady light LEDs more
                 // ----------------------------------------------------...----------------------------------------------------------------------
                 // released_now     | ...                           | if LEFT or RIGHT pressed_now handle it | ...
                 //                  | ...                           | else swap phase and start black/full   | ...
                 // -----------------------------------------------------------------------------------------------------------------------------
-                // pressed_for_long | Clear to init state, but      | Increase state_red_LED_e               | ...
+                // pressed_for_long | Clear to init state, but      | Increase state_LED_views_e             | ...
                 //                  | arbitrary starts              | ...                                    | ...
                 // -----------------------------------------------------------------------------------------------------------------------------
 
@@ -231,13 +235,14 @@ void softblinker_pwm_button_client_task (
 
                 if (pressed_now) {
                     unsigned iof_LED;
-                    bool     button_left_or_right_taken = false;
+                    bool     button_left_taken = false;
+                    bool     button_right_taken = false;
 
                     switch (iof_button) {
                         case IOF_BUTTON_LEFT: {
 
                             iof_LED = IOF_YELLOW_LED;
-                            button_left_or_right_taken = true;
+                            button_left_taken = true;
 
                         } break;
 
@@ -249,14 +254,14 @@ void softblinker_pwm_button_client_task (
                         case IOF_BUTTON_RIGHT: {
 
                             iof_LED = IOF_RED_LED;
-                            button_left_or_right_taken = true;
+                            button_right_taken = true;
 
                         } break;
 
                         default: {} break; // won't happen, but no need to crash
                     } // Outer switch
 
-                    if (button_left_or_right_taken) {
+                    if (button_left_taken or button_right_taken) {
                         beep (outP_beeper_high, 0, 100);
 
                         if (buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) { // double button action
@@ -271,17 +276,59 @@ void softblinker_pwm_button_client_task (
                                 // No code, meaningless
                             #endif
                         } else { // Standard
+                            if (states_LED_views.state_LED_views == state_all_LEDs_stable_intensity) {
 
-                            unsigned iof_period_ms = params[iof_LED].iof_period_ms_list;
+                                const unsigned steps_10_percent = steps_0100/10;
+                                signed inc_dec_by;
 
-                            iof_period_ms = (iof_period_ms + 1) % PERIOD_MS_LIST_LEN;
+                                if (button_left_taken) { // if steady light LEDs less
+                                    if (states_LED_views.stable_intensity_steps_0100 <= steps_10_percent) {
+                                        // '<=' in test gives [100..20,10,9,8,7,6,5,4,3,2,1,0]
+                                        inc_dec_by = -1;
+                                    } else {
+                                        inc_dec_by = -10;
+                                    }
+                                } else if (button_right_taken) { // if steady light LEDs more
+                                    if (states_LED_views.stable_intensity_steps_0100 < steps_10_percent) {
+                                        // '<' in test gives [0,1,2,3,4,5,6,7,8,9,10,20..100]
+                                        inc_dec_by = 1;
+                                    } else {
+                                        inc_dec_by = 10;
+                                    }
+                                } else {
+                                    inc_dec_by = 0;
+                                }
 
-                            if (iof_period_ms == (PERIOD_MS_LIST_LEN - 1)) {
-                                beep (outP_beeper_high, 50, 50); // Extra beep at end of list
+                                states_LED_views.stable_intensity_steps_0100 =
+                                        in_range_unsigned_inc_dec (states_LED_views.stable_intensity_steps_0100, 0, steps_0100, inc_dec_by);
+
+                                if (states_LED_views.stable_intensity_steps_0100 == 0) {
+                                    beep (outP_beeper_high, 50, 50);
+                                } else if (states_LED_views.stable_intensity_steps_0100 == steps_10_percent) {
+                                    beep (outP_beeper_high, 50, 100);
+                                } else if (states_LED_views.stable_intensity_steps_0100 == steps_0100) {
+                                    beep (outP_beeper_high, 50, 200);
+                                } else {}
+
+                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                    params[ix].max_intensity = states_LED_views.stable_intensity_steps_0100;
+                                    params[ix].min_intensity = params[ix].max_intensity;
+                                }
+
+                                // OBSERVE THAT LEDs will BLINK "RANDOMLY" UNTIL SETTLED if DEBUG_PRINT_GLOBAL_APP == 1
+
+                            } else { // not state_all_LEDs_stable_intensity
+                                unsigned iof_period_ms = params[iof_LED].iof_period_ms_list;
+
+                                iof_period_ms = (iof_period_ms + 1) % PERIOD_MS_LIST_LEN;
+
+                                if (iof_period_ms == (PERIOD_MS_LIST_LEN - 1)) {
+                                    beep (outP_beeper_high, 50, 50); // Extra beep at end of list
+                                }
+
+                                params[iof_LED].period_ms = period_ms_list[iof_period_ms];
+                                params[iof_LED].iof_period_ms_list = iof_period_ms;
                             }
-
-                            params[iof_LED].period_ms = period_ms_list[iof_period_ms];
-                            params[iof_LED].iof_period_ms_list = iof_period_ms;
                         }
 
                         write_LEDs_intensity_and_period = true;
@@ -335,33 +382,54 @@ void softblinker_pwm_button_client_task (
                             beep (outP_beeper_high, 50, 100);
 
                             set_params_to_default (params);
-                            set_states_red_LED_to_default (params, states_red_LED, synch_all);
+                            set_states_LED_views_to_default (params, states_LED_views, synch_all);
                             write_LEDs_intensity_and_period = true;
                         } break;
 
                         case IOF_BUTTON_CENTER: { // IOF_RED_LED:
                             beep (outP_beeper_high, 0, 200);
 
-                            states_red_LED.state_red_LED = (states_red_LED.state_red_LED + 1) % NUM_RED_LED_STATES;
+                            states_LED_views.state_LED_views = (states_LED_views.state_LED_views + 1) % NUM_RED_LED_STATES;
 
                             // No extra beep for 0 or the last, but then 1, 2 .. extra beeps
-                            if (states_red_LED.state_red_LED < (NUM_RED_LED_STATES-1)) {
-                                for (unsigned ix=0; ix < states_red_LED.state_red_LED; ix++) {
+                            if (states_LED_views.state_LED_views < (NUM_RED_LED_STATES-1)) {
+                                for (unsigned ix=0; ix < states_LED_views.state_LED_views; ix++) {
                                     beep (outP_beeper_high, 100, 50);
                                 }
                             }
 
-                            debug_print ("state_red_LED %u (%u)\n", states_red_LED.state_red_LED, NUM_RED_LED_STATES);
+                            debug_print ("state_LED_views %u (%u)\n", states_LED_views.state_LED_views, NUM_RED_LED_STATES);
 
-                            switch (states_red_LED.state_red_LED) {
+                            switch (states_LED_views.state_LED_views) {
                                 case state_red_LED_default: {
                                     beep (outP_beeper_high, 50, 100);
 
                                     set_params_to_default (params);
-                                    set_states_red_LED_to_default (params, states_red_LED, synch_all);
+                                    set_states_LED_views_to_default (params, states_LED_views, synch_all);
                                 } break;
 
+                                case state_all_LEDs_stable_intensity: {
+
+                                    synch_all = DEFAULT_SYNCH; // Set to all at write_LEDs_intensity_and_period
+
+                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                        params[ix].period_ms       = DEFAULT_SOFTBLINK_PERIOD_MS; // Would not matter since it's stable anyhow
+                                        params[ix].intensity_steps = steps_0100;
+                                        params[ix].max_intensity   = states_LED_views.stable_intensity_steps_0100;
+                                        params[ix].min_intensity   = params[ix].max_intensity;
+                                    }
+
+                                } break;
+
+                                // #pragma fallthrough (for xTIMEcomposer 14.3.3)
                                 case state_red_LED_steps_0012: {
+                                    // Clean-up after state_all_LEDs_stable_intensity:
+                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                        params[ix].min_intensity   = DEFAULT_DARK_INTENSITY;
+                                        params[ix].max_intensity   = DEFAULT_FULL_INTENSITY;
+                                        params[ix].intensity_steps = DEFAULT_INTENSITY_STEPS;
+                                    }
+
                                     // The effect of changing intensity_steps is best seen at slow periods:
                                     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
                                         params[ix].period_ms = SOFTBLINK_PERIOD_MAX_MS; // PWM=008
@@ -370,9 +438,9 @@ void softblinker_pwm_button_client_task (
                                 case state_red_LED_steps_0100:
                                 case state_red_LED_steps_0256:
                                 case state_red_LED_steps_1000: {
-                                    params[IOF_RED_LED].intensity_steps             = intensity_steps_list[states_red_LED.iOf_intensity_steps_list_red_LED];
-                                    states_red_LED.iOf_intensity_steps_list_red_LED = (states_red_LED.iOf_intensity_steps_list_red_LED + 1) % NUM_INTENSITY_STEPS; // For next time
-                                    write_LEDs_intensity_and_period                 = true;
+                                    params[IOF_RED_LED].intensity_steps               = intensity_steps_list[states_LED_views.iOf_intensity_steps_list_red_LED];
+                                    states_LED_views.iOf_intensity_steps_list_red_LED = (states_LED_views.iOf_intensity_steps_list_red_LED + 1) % NUM_INTENSITY_STEPS; // For next time
+                                    write_LEDs_intensity_and_period                   = true;
                                 } break;
 
                                 case state_red_LED_half_range: {
