@@ -47,6 +47,8 @@
     typedef enum {LED_off  = 0, LED_on   = 1} LED_high_e;  // Must be {0,1} like this! Using boolean expression on it
     typedef enum {pin_low  = 0, pin_high = 1} port_pin_e;  // Must be {0,1} like this! Using boolean expression on it
 
+    typedef unsigned id_task_t;
+
 #endif
 
 #define IS_MYTARGET_VOID               0
@@ -107,10 +109,10 @@
                                        // (228):                Constraints:   C:  3    T:  3     C:     3     Slack: 760.0 ns
 
 #define CONFIG_BARRIER 2 // 0 No barrier
-                         // 1 interface  Total 12 chanends
+                         // 1 interface  Total  6 chanends if [[combine]], 12 else (but none seems to work)
                          // 2 chan       Total 11 chanends
 
-#define DEBUG_PRINT_GLOBAL_APP 1 // 0: all printf off
+#define DEBUG_PRINT_GLOBAL_APP 0 // 0: all printf off
                                  // 1: controlled locally in each xc file
 
 #endif

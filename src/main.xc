@@ -258,7 +258,7 @@
                         }
                         on tile[0]: {
                             // [[combine]] error: `c_barrier' used between two combined tasks
-                            [[combine]] // Ok when interface
+                            [[combine]] // Ok when interface. But does LESS before it stops in barrier if NOT [[combine]]
                             par {
                                 barrier_if_task      (if_do_barrier, if_done_barrier);
                                 softblinker_task_if_barrier (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED], yellow_DIRCHANGE, if_do_barrier [IOF_YELLOW_LED], if_done_barrier [IOF_YELLOW_LED]);
@@ -279,9 +279,9 @@
                             }
                         }
                         on tile[0]: {
-                            // [[combine]] error: `c_barrier' used between two combined tasks
+                            // [[combine]] // error: `c_barrier' used between two combined tasks
                             par {
-                                barrier_donehan_task             (c_barrier);
+                                barrier_do_chan_task          (c_barrier);
                                 softblinker_task_chan_barrier (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED], yellow_DIRCHANGE, c_barrier [IOF_YELLOW_LED]);
                                 softblinker_task_chan_barrier (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED],    red_DIRCHANGE,    c_barrier [IOF_RED_LED]);
                             }

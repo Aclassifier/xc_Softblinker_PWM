@@ -62,7 +62,7 @@ typedef struct params_t {
 
 typedef enum {
     state_red_LED_default,           // 0 beeep
-    state_all_LEDs_stable_intensity, // 1 beeep beep
+    state_all_LEDs_stable_intensity, // 1 beeep beep .. plus some extra beeps on 0, 10 and 100% intensity
     state_red_LED_steps_0012,        // 2 beeep beep beep                     steps_0012
     state_red_LED_steps_0100,        // 3 beeep beep beep beep                steps_0100
     state_red_LED_steps_0256,        // 4 beeep beep beep beep beep           steps_0256

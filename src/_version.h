@@ -12,9 +12,14 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.5.3" // Not used
-#define AUDIOMUX_VERSION_NUM   0053  // Not used either
-
+#define AUDIOMUX_VERSION_STR "0.5.4" // Not used
+#define AUDIOMUX_VERSION_NUM   0054  // Not used either
+// 0054 06Sep2020          softblinker_task_chan_barrier now works non-blocking synch with channels
+//                         Last commit in sources of:
+//                             softblinker_task_chan_barrier_works_on_state_all_LEDs_synched
+//                             softblinker_task_if_barrier_hangs_on_state_all_LEDs_synched
+//                             softblinker_task_if_barrier_crashes_on_state_all_LEDs_synched
+//                             softblinker_pwm_for_LED_task (but only skeleton was left)
 // 0053 05Sep2020          Shorter beep when state_all_LEDs_stable_intensity
 // 0052 05Sep2020          state_all_LEDs_stable_intensity now new, possible to use as a "lamp". 100 levels used. 1% is quite visible!
 // 0051 27Aug2020          Before ging to Bud
@@ -48,7 +53,7 @@
 // 0032 11Aug2020          Last version with init of array of struct as
 //                         const mystruct array[NUM] = {{0,1,200,3},{0,200,1,3}} since it's not safe
 // 0031 10Aug2020          states_red_LED_t and handling. Not tested
-// 0029 09Aug2020          synchronize and barrier_donehan_task works with CONFIG_BARRIER==2
+// 0029 09Aug2020          synchronize and barrier_do_chan_task works with CONFIG_BARRIER==2
 // 0028 09Aug2020          CONFIG_BARRIER==2 this compiles with
 //                         Constraints: C:8/6 T:10/6 C:32/11 M:9544 S:1404 C:7196 D:944
 //                         warning: route(0)     Pass with 14 unknowns, Num Paths: 8, Slack: 208.0 ns, Required: 1.0 us, Worst: 792.0 ns, Min Core Frequency: 396 MHz

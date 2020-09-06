@@ -32,6 +32,7 @@
     typedef enum {scan_none, scan_continuous}         scan_type_e;
     typedef enum {active_high = 0, active_low = 1}    port_pin_sign_e; // Must be {0,1} like this! Use of XOR is dependent on it!
     typedef enum {continuous_LED, dark_LED, full_LED} start_LED_at_e;
+    typedef enum {is_min, is_max}                     extremals_e;
 
     typedef enum {
         slide_transition_pwm, // PWM pulses will slide with respect to period pulse like yellow_DIRCHANGE
@@ -75,7 +76,7 @@
                 const unsigned         period_ms, // (*)
                 const start_LED_at_e   start_LED_at,
                 const transition_pwm_e transition_pwm,
-                const synch_e          do_synchronization);
+                const synch_e          do_multipart_synch);
 
         // (*) The period goes for any full DARK to FULL (INTENSITY STEPS) BUT IS NORMALISED TO ACTUAL RANGE!
         //     As the range is decreased, the time it takes to deliver out all port outpus decreases. Example:
@@ -111,7 +112,7 @@
 
         [[combinable]]
         void softblinker_task_if_barrier (
-                const unsigned         id_task, // For printing only
+                const id_task_t        id_task, // For printing only
                 client pwm_if          if_pwm,
                 server softblinker_if  if_softblinker,
                 out buffered port:1    out_port_toggle_on_direction_change, // Toggle when LED max
@@ -120,7 +121,7 @@
 
         [[combinable]]
         void softblinker_task_if_barrier_0 (
-                const unsigned         id_task, // For printing only
+                const id_task_t        id_task, // For printing only
                 client pwm_if          if_pwm,
                 server softblinker_if  if_softblinker,
                 out buffered port:1    out_port_toggle_on_direction_change, // Toggle when LED max
@@ -129,7 +130,7 @@
 
         [[combinable]]
         void softblinker_task_chan_barrier (
-                const unsigned        id_task, // For printing only
+                const id_task_t       id_task,
                 client pwm_if         if_pwm,
                 server softblinker_if if_softblinker,
                 out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
@@ -148,7 +149,7 @@
     #if (CONFIG_NUM_TASKS_PER_LED==1)
         [[combinable]]
         void softblinker_pwm_for_LED_task (
-                const unsigned        id_task, // For printing only
+                const id_task_t       id_task, // For printing only
                 server softblinker_if if_softblinker,
                 out buffered port:1   out_port_LED,  // LED
                 out buffered port:1   out_port_toggle_on_direction_change); // Toggle when LED max
