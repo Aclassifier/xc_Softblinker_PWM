@@ -26,7 +26,8 @@
                                  // XC/XMOS 100 MHz increment every 10 ns for max 2exp32 = 4294967296,
                                  // ie. divide by 100 mill = 42.9.. seconds
 
-    typedef enum {led_on, led_off} led_on_low_t; // 0 is led_on
+    typedef enum {low_is_on,  high_is_off} led_on_low_t;  // 0 is led_on
+    typedef enum {low_is_off, high_is_on}  led_on_high_t; // 1 is led_on
 
     #define AFTER_32(a,b) ((a-b)>0)
 

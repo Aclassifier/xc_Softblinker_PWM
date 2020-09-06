@@ -168,8 +168,7 @@ void beep (
 void softblinker_pwm_button_client_task (
         server button_if      i_buttons_in[BUTTONS_NUM_CLIENTS],
         client softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS],
-        out buffered port:1   outP_beeper_high,
-        out buffered port:1   outP_external_blue_led_high)
+        out buffered port:1   outP_beeper_high)
 {
     beep (outP_beeper_high, 0, 250);
 
@@ -482,7 +481,6 @@ void softblinker_pwm_button_client_task (
                     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
                         params[ix].synch = synch_all;
                     }
-                    outP_external_blue_led_high <: (synch_all == synch_active);
                     write_to_pwm_softblinker (if_softblinker, params);
                 } else {}
 

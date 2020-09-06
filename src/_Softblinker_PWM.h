@@ -15,8 +15,7 @@
     void softblinker_pwm_button_client_task (
             server button_if      i_buttons_in[BUTTONS_NUM_CLIENTS],
             client softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS],
-            out buffered port:1   outP_beeper_high,
-            out buffered port:1   outP_external_blue_led_high);
+            out buffered port:1   outP_beeper_high);
 
 #else
     #error Nested include _Softblinker_PWM.h

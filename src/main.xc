@@ -271,7 +271,7 @@
                             [[combine]]
                             par {
                                 // Not time-critical, sll share one core:
-                                softblinker_pwm_button_client_task (if_buttons, if_softblinker, outP_beeper_high, outP_external_blue_led_high);
+                                softblinker_pwm_button_client_task (if_buttons, if_softblinker, outP_beeper_high);
 
                                 button_task (IOF_BUTTON_LEFT,   inP_button_left,   if_buttons[IOF_BUTTON_LEFT]);
                                 button_task (IOF_BUTTON_CENTER, inP_button_center, if_buttons[IOF_BUTTON_CENTER]);
@@ -281,7 +281,7 @@
                         on tile[0]: {
                             // [[combine]] // error: `c_barrier' used between two combined tasks
                             par {
-                                barrier_do_chan_task          (c_barrier);
+                                barrier_do_chan_task          (c_barrier, outP_external_blue_led_high);
                                 softblinker_task_chan_barrier (IOF_YELLOW_LED, if_pwm[IOF_YELLOW_LED], if_softblinker[IOF_YELLOW_LED], yellow_DIRCHANGE, c_barrier [IOF_YELLOW_LED]);
                                 softblinker_task_chan_barrier (IOF_RED_LED,    if_pwm[IOF_RED_LED],    if_softblinker[IOF_RED_LED],    red_DIRCHANGE,    c_barrier [IOF_RED_LED]);
                             }

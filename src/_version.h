@@ -12,8 +12,12 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.5.4" // Not used
-#define AUDIOMUX_VERSION_NUM   0054  // Not used either
+#define AUDIOMUX_VERSION_STR "0.5.5" // Not used
+#define AUDIOMUX_VERSION_NUM   0055  // Not used either
+// 0055 06Sep2020          barrier_do_chan_task now with outP_external_blue_led_high
+//                         Last commit in sources of:
+//                             blocking_chan_barrier_do_synchronize
+//                             barrier_if_task (but a nwe with this name will reappear)
 // 0054 06Sep2020          softblinker_task_chan_barrier now works non-blocking synch with channels
 //                         Last commit in sources of:
 //                             softblinker_task_chan_barrier_works_on_state_all_LEDs_synched
