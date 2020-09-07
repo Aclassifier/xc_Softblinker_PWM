@@ -32,7 +32,7 @@
     typedef enum {scan_none, scan_continuous}         scan_type_e;
     typedef enum {active_high = 0, active_low = 1}    port_pin_sign_e; // Must be {0,1} like this! Use of XOR is dependent on it!
     typedef enum {continuous_LED, dark_LED, full_LED} start_LED_at_e;
-    typedef enum {is_min, is_max}                     extremals_e;
+    typedef enum {is_anywhere, is_min, is_max}        extremals_e;
 
     typedef enum {
         slide_transition_pwm, // PWM pulses will slide with respect to period pulse like yellow_DIRCHANGE
@@ -65,13 +65,12 @@
 
         bool // max_intensity >= min_intensity
         set_LED_intensity_range ( // FIRST THIS..
-                const unsigned          frequency_Hz,     // 0 -> actives port
+                const unsigned          frequency_Hz,    // 0 -> actives port
                 const intensity_steps_e intensity_steps, // [1..]
                 const intensity_t       min_intensity,   // [0..x]
                 const intensity_t       max_intensity);  // [x..intensity_steps_]
 
-
-        bool // timing is running (not DARK or FULL)
+        void
         set_LED_period_linear_ms ( // ..THEN THIS
                 const unsigned         period_ms, // (*)
                 const start_LED_at_e   start_LED_at,
@@ -79,7 +78,7 @@
                 const synch_e          do_multipart_synch);
 
         // (*) The period goes for any full DARK to FULL (INTENSITY STEPS) BUT IS NORMALISED TO ACTUAL RANGE!
-        //     As the range is decreased, the time it takes to deliver out all port outpus decreases. Example:
+        //     As the range is decreased, the time it takes to deliver out all port output decreases. Example:
         //     A full period of 20 seconds increases for 10 and decreases for 10 seconds. If it starts
         //     at 20% up and stops at 20% from the top its period is not longer 20 seconds, but 12 seconds.
         //     Following the same curve it would start 2 seconds later and reach the top 2 second earlier,
@@ -108,25 +107,6 @@
     #define DO_PULSE_ON_START_SYNCH 1 // 0 or 1
 
     #if (CONFIG_NUM_TASKS_PER_LED==2)
-        // softblinker_task_if_barrier TODO: This is the CARRIER, and I use a TRIANGULAR WAVE
-
-        [[combinable]]
-        void softblinker_task_if_barrier (
-                const id_task_t        id_task, // For printing only
-                client pwm_if          if_pwm,
-                server softblinker_if  if_softblinker,
-                out buffered port:1    out_port_toggle_on_direction_change, // Toggle when LED max
-                client barrier_do_if   if_do_barrier,
-                server barrier_done_if if_done_barrier);
-
-        [[combinable]]
-        void softblinker_task_if_barrier_0 (
-                const id_task_t        id_task, // For printing only
-                client pwm_if          if_pwm,
-                server softblinker_if  if_softblinker,
-                out buffered port:1    out_port_toggle_on_direction_change, // Toggle when LED max
-                client barrier_do_if   if_do_barrier,
-                server barrier_done_if if_done_barrier);
 
         [[combinable]]
         void softblinker_task_chan_barrier (

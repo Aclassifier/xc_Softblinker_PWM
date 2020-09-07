@@ -67,7 +67,11 @@ period_ms_to_one_step_ticks (
         // For the longest this waiting could last
         // (SOFTBLINK_PERIOD_MAX_MS - SOFTBLINK_PERIOD_MIN_MS)/2 = 4.9 seconds?)
 
-        if (extremals == is_max)      {
+        if (extremals == is_anywhere) {
+            c_barrier <: id_task;
+            // sync_ct.do_multipart_synch_pending will be set later
+            // Leave ports undefined, since they are
+        } else if (extremals == is_max) {
             #if (DO_PULSE_ON_START_SYNCH == 1)
                 #if (WARNINGS==1)
                     #warning DO_PULSE_ON_START_SYNCH
@@ -78,7 +82,8 @@ period_ms_to_one_step_ticks (
             #else
                 c_barrier <: id_task;
             #endif
-        } else { // is_min
+            sync_ct.do_multipart_synch_pending = synch_active; // may be set to synch_none in set_LED_period_linear_ms
+        } else if (extremals == is_min) {
             #if (DO_PULSE_ON_START_SYNCH == 1)
                 out_port_toggle_on_direction_change <: pin_high;
                 c_barrier <: id_task;
@@ -86,9 +91,9 @@ period_ms_to_one_step_ticks (
             #else
                 c_barrier <: id_task;
             #endif
+            sync_ct.do_multipart_synch_pending = synch_active; // may be set to synch_none in set_LED_period_linear_ms
         }
-        sync_ct.do_next_intensity_at_intervals_pending = true;         // may be set to false in      set_LED_intensity_range
-        sync_ct.do_multipart_synch_pending             = synch_active; // may be set to synch_none in set_LED_period_linear_ms
+        sync_ct.do_next_intensity_at_intervals_pending = true; // may be set to false in      set_LED_intensity_range
         sync_ct.awaiting_synchronized                  = true;
     }
 
@@ -176,7 +181,7 @@ period_ms_to_one_step_ticks (
                             (intensity_t) soft_ct.now_intensity,
                             soft_ct.transition_pwm);
 
-                } break;
+                } break; // timerafter
 
                 case if_softblinker.set_LED_intensity_range (
                         const unsigned          frequency_Hz,               // 0 -> actives port
@@ -196,6 +201,7 @@ period_ms_to_one_step_ticks (
                         soft_ct.frequency_Hz = frequency_Hz;
 
                         if (soft_ct.max_intensity == soft_ct.min_intensity) { // No INC_ONE_UP or INC_ONE_DOWN of sensitivity
+
                             if (sync_ct.awaiting_synchronized) {
                                 sync_ct.do_next_intensity_at_intervals_pending = false;
                             } else {
@@ -235,23 +241,24 @@ period_ms_to_one_step_ticks (
                 } break;
 
                 case if_softblinker.set_LED_period_linear_ms (
-                        const unsigned         period_ms, // See Comment in the header file
+                        const unsigned         period_ms_, // See Comment in the header file
                         const start_LED_at_e   start_LED_at,
                         const transition_pwm_e transition_pwm,
-                        const const synch_e    do_synchronization_) -> bool ok_running : {
+                        const const synch_e    do_synchronization) : {
 
                     // It seems like linear is ok for softblinking of a LED, ie. "softblink" is soft
                     // I have not tried any other, like sine. I would assume it would feel like dark_LED longer
 
                     const bool ok_running = soft_ct.do_next_intensity_at_intervals;
+                    unsigned   period_ms;
 
                     if (ok_running) {
                         // Normalise to set period
                         //
-                        unsigned          period_ms_now         = in_range_signed (period_ms, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
+                        const unsigned    period_ms__           = in_range_signed (period_ms_, SOFTBLINK_PERIOD_MIN_MS, SOFTBLINK_PERIOD_MAX_MS);
                         const intensity_t range_intensity_steps = soft_ct.max_intensity - soft_ct.min_intensity;
-                        //
-                        period_ms_now = (period_ms * soft_ct.intensity_steps) / range_intensity_steps; // Now as range decreases, period increases
+
+                        period_ms = (period_ms__ * soft_ct.intensity_steps) / range_intensity_steps; // Now as range decreases, period increases
 
                         if (start_LED_at == dark_LED) {
                             soft_ct.now_intensity = DEFAULT_DARK_INTENSITY;
@@ -263,40 +270,50 @@ period_ms_to_one_step_ticks (
 
                         soft_ct.one_step_at_intervals_ticks = period_ms_to_one_step_ticks (period_ms, soft_ct.intensity_steps);
                         soft_ct.transition_pwm = transition_pwm;
-
-                        if (sync_ct.awaiting_synchronized) {
-                            sync_ct.do_multipart_synch_pending = do_synchronization_;
-                        } else {
-                            sync_ct.do_multipart_synch = do_synchronization_;
-                        }
-
-                        // Printing disturbs update messages above, so it will appear to "blink"
-                        debug_print ("%u set_LED_period_linear_ms sync %u:%u per %u->%u (ticks %u) (%u, %d) min %u now %d max %u\n",
-                                     id_task, //                       ## ##     ##  ##        ##   ##  ##      ##     ##     ##
-                                                                       sync_ct.awaiting_synchronized,
-                                                                          sync_ct.awaiting_synchronized ? sync_ct.do_multipart_synch_pending : sync_ct.do_multipart_synch,
-                                                                                 period_ms_now,
-                                                                                     period_ms,
-                                                                                               soft_ct.one_step_at_intervals_ticks,
-                                                                                                    soft_ct.do_next_intensity_at_intervals,
-                                                                                                        soft_ct.inc_steps,
-                                                                                                                soft_ct.min_intensity,
-                                                                                                                      soft_ct.now_intensity,
-                                                                                                                             soft_ct.max_intensity);
                     } else {
-                        // No code
-                        debug_print ("%u set_LED_period_linear_ms do_next_intensity_at_intervals false\n", id_task);
+                        period_ms = 0; // Just some value, for printing
                     }
+
+                    unsigned branch = 0; // For log
+
+                    if (sync_ct.awaiting_synchronized) {
+                        sync_ct.do_multipart_synch_pending = do_synchronization; // later
+                    } else if ((sync_ct.do_multipart_synch == synch_active) and (do_synchronization == synch_none)) {
+                        // Ending synch, clean up
+                        // Starting synch here is just to save time. It could take several seconds before is_min or is:max is reached
+                        start_synch_chan_barrier (id_task, sync_ct, is_anywhere, c_barrier, out_port_toggle_on_direction_change);
+                        soft_ct.do_next_intensity_at_intervals = false;
+                        sync_ct.do_multipart_synch_pending = synch_none; // later
+                        branch = 1;
+                    } else {
+                        sync_ct.do_multipart_synch = do_synchronization; // now
+                        branch = 2;
+                    }
+
+                    // Printing disturbs update messages above, so it will appear to "blink"
+                    debug_print ("%u set_LED_period_linear_ms sync %u:%u branch %u period %u->%u (ticks %u) (%u, %d) min %u now %d max %u\n",
+                                 id_task, //                       ## ##        ##        ##  ##        ##   ##  ##      ##     ##     ##
+                                                                   sync_ct.awaiting_synchronized,
+                                                                      sync_ct.awaiting_synchronized ? sync_ct.do_multipart_synch_pending : sync_ct.do_multipart_synch,
+                                                                                branch,
+                                                                                          period_ms_,
+                                                                                              period_ms,
+                                                                                                        soft_ct.one_step_at_intervals_ticks,
+                                                                                                             soft_ct.do_next_intensity_at_intervals,
+                                                                                                                 soft_ct.inc_steps,
+                                                                                                                         soft_ct.min_intensity,
+                                                                                                                               soft_ct.now_intensity,
+                                                                                                                                      soft_ct.max_intensity);
                 } break;
 
                 case c_barrier :> id_task_t id_task_ : {
-                    debug_print ("%u/%u synchronized synch %u cont %u\n", id_task, id_task_, sync_ct.do_next_intensity_at_intervals_pending, sync_ct.do_next_intensity_at_intervals_pending);
+                    debug_print ("%u/%u synchronized synch %u cont %u\n", id_task, id_task_, sync_ct.do_multipart_synch_pending, sync_ct.do_next_intensity_at_intervals_pending);
 
-                    sync_ct.awaiting_synchronized = false;
+                    sync_ct.awaiting_synchronized          = false;
+                    sync_ct.do_multipart_synch             = sync_ct.do_multipart_synch_pending;
                     soft_ct.do_next_intensity_at_intervals = sync_ct.do_next_intensity_at_intervals_pending;
 
-                    if (sync_ct.do_next_intensity_at_intervals_pending) {
-                        soft_ct.do_next_intensity_at_intervals = true;
+                    if (soft_ct.do_next_intensity_at_intervals) {
                         soft_ct.tmr :> soft_ct.timeout; // restart timer
                         soft_ct.timeout += soft_ct.one_step_at_intervals_ticks;
                     } else {

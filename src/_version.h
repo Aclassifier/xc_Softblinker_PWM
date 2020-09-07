@@ -12,8 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.5.5" // Not used
-#define AUDIOMUX_VERSION_NUM   0055  // Not used either
+#define AUDIOMUX_VERSION_STR "0.5.6" // Not used
+#define AUDIOMUX_VERSION_NUM   0056  // Not used either
+// 0056 07Sep2020          Both in and out of state_all_LEDs_synched seems to work, so barrier_do_chan_task also seems to work
+//                         See log_Softblinker_PWM_0056.txt
 // 0055 06Sep2020          barrier_do_chan_task now with outP_external_blue_led_high
 //                         Last commit in sources of:
 //                             blocking_chan_barrier_do_synchronize

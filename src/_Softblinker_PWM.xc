@@ -445,7 +445,6 @@ void softblinker_pwm_button_client_task (
                                 case state_red_LED_steps_1000: {
                                     params[IOF_RED_LED].intensity_steps               = intensity_steps_list[states_LED_views.iOf_intensity_steps_list_red_LED];
                                     states_LED_views.iOf_intensity_steps_list_red_LED = (states_LED_views.iOf_intensity_steps_list_red_LED + 1) % NUM_INTENSITY_STEPS; // For next time
-                                    write_LEDs_intensity_and_period                   = true;
                                 } break;
 
                                 case state_red_LED_half_range: {
