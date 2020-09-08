@@ -12,8 +12,12 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.5.6" // Not used
-#define AUDIOMUX_VERSION_NUM   0056  // Not used either
+#define AUDIOMUX_VERSION_STR "0.5.8" // Not used
+#define AUDIOMUX_VERSION_NUM   0058  // Not used either
+
+// 0058 08Sep2020          state_all_LEDs_stable_intensity now handled when left of right buttons released_now (preparing for next version)
+//                         state_LED_views_e cleared when both left and right buttons are pressed_for_long (same)
+// 0057 07Sep2020          state_LED_views_e removed steps_1000 since that's default. Since button pressed_for_long between each state it's ok to minimize
 // 0056 07Sep2020          Both in and out of state_all_LEDs_synched seems to work, so barrier_do_chan_task also seems to work
 //                         See log_Softblinker_PWM_0056.txt
 // 0055 06Sep2020          barrier_do_chan_task now with outP_external_blue_led_high

@@ -20,7 +20,10 @@
     //     Even if a PWM "intensity" is not a continous current but pulse-width modulation
     //     0..256 gives 257 values, but I use it because 256 division by 4 is possible
 
-    #define INTENSITY_STEPS_LIST {steps_0012, steps_0100, steps_0256, steps_1000}
+    #define INTENSITY_STEPS_LIST       {steps_0012, steps_0100, steps_0256, steps_1000}
+
+    #define NUM_INTENSITY_STEPS_SHORT (NUM_INTENSITY_STEPS-1)
+    #define INTENSITY_STEPS_LIST_SHORT {steps_0012, steps_0100, steps_0256} // NUM_INTENSITY_STEPS_SHORT
 
     #define DEFAULT_INTENSITY_STEPS     steps_1000
     #define DEFAULT_DARK_INTENSITY      0

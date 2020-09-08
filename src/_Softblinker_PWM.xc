@@ -65,10 +65,9 @@ typedef enum {
     state_all_LEDs_stable_intensity, // 1 beeep beep .. plus some extra beeps on 0, 10 and 100% intensity
     state_red_LED_steps_0012,        // 2 beeep beep beep                     steps_0012
     state_red_LED_steps_0100,        // 3 beeep beep beep beep                steps_0100
-    state_red_LED_steps_0256,        // 4 beeep beep beep beep beep           steps_0256
-    state_red_LED_steps_1000,        // 5 beeep beep beep beep beep beep      steps_1000 -> now done all NUM_INTENSITY_STEPS
-    state_red_LED_half_range,        // 6 beeep beep beep beep beep beep beep
-    state_all_LEDs_synched,          // 7 beeep beeeep + BLUE LED ON!
+    state_red_LED_steps_0256,        // 4 beeep beep beep beep beep           steps_0256 -> now done all NUM_INTENSITY_STEPS_SHORT (steps_1000 not needed since it's default)
+    state_red_LED_half_range,        // 5 beeep beep beep beep beep beep beep
+    state_all_LEDs_synched,          // 6 beeep beeeep + BLUE LED ON!
     NUM_RED_LED_STATES // ==8 those above
     //
 } state_LED_views_e;
@@ -181,8 +180,8 @@ void softblinker_pwm_button_client_task (
     states_LED_views_t states_LED_views;
     synch_e            synch_all; // Single value to reflect that ALL LEDs or NO LED must be synched, else deadlock!
 
-    const unsigned          period_ms_list       [PERIOD_MS_LIST_LEN]  = PERIOD_MS_LIST;
-    const intensity_steps_e intensity_steps_list [NUM_INTENSITY_STEPS] = INTENSITY_STEPS_LIST;
+    const unsigned          period_ms_list             [PERIOD_MS_LIST_LEN]        = PERIOD_MS_LIST;
+    const intensity_steps_e intensity_steps_list_short [NUM_INTENSITY_STEPS_SHORT] = INTENSITY_STEPS_LIST_SHORT;
 
 
     for (unsigned ix = 0; ix < BUTTONS_NUM_CLIENTS; ix++) {
@@ -208,20 +207,23 @@ void softblinker_pwm_button_client_task (
             // BUTTON PRESSES
             //
             case i_buttons_in[int iof_button].button (const button_action_t button_action) : {
+
                 bool write_LEDs_intensity_and_period = false;
+                bool button_left_taken               = false;
+                bool button_right_taken              = false;
 
                 // -----------------------------------------------------------------------------------------------------------------------------
                 // BUTTONS          | LEFT                          | CENTER                                 | RIGHT
                 // -----------------------------------------------------------------------------------------------------------------------------
                 // pressed_now      | if also CENTER set red period | ...                                    | if also CENTER set yellow period
-                //                  | else next yellow/left period. | ...                                    | else next red/right period.
-                //                  | if steady light LEDs less     | ...                                    | if steady light LEDs more
-                // ----------------------------------------------------...----------------------------------------------------------------------
-                // released_now     | ...                           | if LEFT or RIGHT pressed_now handle it | ...
+                //                  | else next yellow/left period  | ...                                    | else next red/right period
+                // -----------------------------------------------------------------------------------------------------------------------------
+                // released_now     | if steady light LEDs less     | if LEFT or RIGHT pressed_now handle it | if steady light LEDs more
                 //                  | ...                           | else swap phase and start black/full   | ...
                 // -----------------------------------------------------------------------------------------------------------------------------
-                // pressed_for_long | Clear to init state, but      | Increase state_LED_views_e             | ...
-                //                  | arbitrary starts              | ...                                    | ...
+                // pressed_for_long |                               | Increase state_LED_views_e             | ...
+                // =============================================================================================================================
+                // pressed_for_long | ->      if LEFT and RIGHT clear to init state, but arbitrary starts      <--
                 // -----------------------------------------------------------------------------------------------------------------------------
 
                 buttons_action[iof_button] = button_action;
@@ -234,8 +236,6 @@ void softblinker_pwm_button_client_task (
 
                 if (pressed_now) {
                     unsigned iof_LED;
-                    bool     button_left_taken = false;
-                    bool     button_right_taken = false;
 
                     switch (iof_button) {
                         case IOF_BUTTON_LEFT: {
@@ -276,49 +276,11 @@ void softblinker_pwm_button_client_task (
                             #elif (CONFIG_NUM_SOFTBLIKER_LEDS==1)
                                 // No code, meaningless
                             #endif
+
                         } else { // Standard
                             if (states_LED_views.state_LED_views == state_all_LEDs_stable_intensity) {
 
-                                beep (outP_beeper_high, 0, 50);
-
-                                const unsigned steps_10_percent = steps_0100/10;
-                                signed inc_dec_by;
-
-                                if (button_left_taken) { // if steady light LEDs less
-                                    if (states_LED_views.stable_intensity_steps_0100 <= steps_10_percent) {
-                                        // '<=' in test gives [100..20,10,9,8,7,6,5,4,3,2,1,0]
-                                        inc_dec_by = -1;
-                                    } else {
-                                        inc_dec_by = -10;
-                                    }
-                                } else if (button_right_taken) { // if steady light LEDs more
-                                    if (states_LED_views.stable_intensity_steps_0100 < steps_10_percent) {
-                                        // '<' in test gives [0,1,2,3,4,5,6,7,8,9,10,20..100]
-                                        inc_dec_by = 1;
-                                    } else {
-                                        inc_dec_by = 10;
-                                    }
-                                } else {
-                                    inc_dec_by = 0;
-                                }
-
-                                states_LED_views.stable_intensity_steps_0100 =
-                                        in_range_unsigned_inc_dec (states_LED_views.stable_intensity_steps_0100, 0, steps_0100, inc_dec_by);
-
-                                if (states_LED_views.stable_intensity_steps_0100 == 0) {
-                                    beep (outP_beeper_high, 50, 50);
-                                } else if (states_LED_views.stable_intensity_steps_0100 == steps_10_percent) {
-                                    beep (outP_beeper_high, 50, 100);
-                                } else if (states_LED_views.stable_intensity_steps_0100 == steps_0100) {
-                                    beep (outP_beeper_high, 50, 200);
-                                } else {}
-
-                                for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                    params[ix].max_intensity = states_LED_views.stable_intensity_steps_0100;
-                                    params[ix].min_intensity = params[ix].max_intensity;
-                                }
-
-                                // OBSERVE THAT LEDs will BLINK "RANDOMLY" UNTIL SETTLED if DEBUG_PRINT_GLOBAL_APP == 1
+                                // No code, no handling of these buttons in this state
 
                             } else { // not state_all_LEDs_stable_intensity
                                 beep (outP_beeper_high, 0, 100);
@@ -343,7 +305,7 @@ void softblinker_pwm_button_client_task (
                 } else if (released_now) {
                     switch (iof_button) {
                         case IOF_BUTTON_LEFT: {
-                            // No code, no handling
+                            button_left_taken = true;
                         } break;
 
                         case IOF_BUTTON_CENTER: {
@@ -373,22 +335,67 @@ void softblinker_pwm_button_client_task (
                         } break;
 
                         case IOF_BUTTON_RIGHT: {
-                            // No code, no handling
+                            button_right_taken = true;
                         } break;
 
                         default: {} break; // won't happen, but no need to crash
                     } // switch
 
+                    if (button_left_taken or button_right_taken) {
+                        if (states_LED_views.state_LED_views == state_all_LEDs_stable_intensity) {
+
+                            beep (outP_beeper_high, 0, 50);
+
+                            const unsigned steps_10_percent = steps_0100/10;
+                            signed inc_dec_by;
+
+                            if (button_left_taken) { // if steady light LEDs less
+                                if (states_LED_views.stable_intensity_steps_0100 <= steps_10_percent) {
+                                    // '<=' in test gives [100..20,10,9,8,7,6,5,4,3,2,1,0]
+                                    inc_dec_by = -1;
+                                } else {
+                                    inc_dec_by = -10;
+                                }
+                            } else if (button_right_taken) { // if steady light LEDs more
+                                if (states_LED_views.stable_intensity_steps_0100 < steps_10_percent) {
+                                    // '<' in test gives [0,1,2,3,4,5,6,7,8,9,10,20..100]
+                                    inc_dec_by = 1;
+                                } else {
+                                    inc_dec_by = 10;
+                                }
+                            } else {
+                                inc_dec_by = 0;
+                            }
+
+                            states_LED_views.stable_intensity_steps_0100 =
+                                    in_range_unsigned_inc_dec (states_LED_views.stable_intensity_steps_0100, 0, steps_0100, inc_dec_by);
+
+                            if (states_LED_views.stable_intensity_steps_0100 == 0) {
+                                beep (outP_beeper_high, 50, 50);
+                            } else if (states_LED_views.stable_intensity_steps_0100 == steps_10_percent) {
+                                beep (outP_beeper_high, 50, 100);
+                            } else if (states_LED_views.stable_intensity_steps_0100 == steps_0100) {
+                                beep (outP_beeper_high, 50, 200);
+                            } else {}
+
+                            for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                params[ix].max_intensity = states_LED_views.stable_intensity_steps_0100;
+                                params[ix].min_intensity = params[ix].max_intensity;
+                            }
+
+                            // OBSERVE THAT LEDs will BLINK "RANDOMLY" UNTIL SETTLED if DEBUG_PRINT_GLOBAL_APP == 1
+                        } else {
+                            // No code. No handling of these buttons if not state_all_LEDs_stable_intensity
+                        }
+                    } else {
+                       // No code. No handling of IOF_BUTTON_CENTER
+                    }
+
                 } else if (pressed_for_long) {
                     switch (iof_button) {
 
                         case IOF_BUTTON_LEFT: {
-                            beep (outP_beeper_high,  0, 200);
-                            beep (outP_beeper_high, 50, 100);
-
-                            set_params_to_default (params);
-                            set_states_LED_views_to_default (params, states_LED_views, synch_all);
-                            write_LEDs_intensity_and_period = true;
+                            button_left_taken = true;
                         } break;
 
                         case IOF_BUTTON_CENTER: { // IOF_RED_LED:
@@ -441,10 +448,9 @@ void softblinker_pwm_button_client_task (
                                     }
                                 } [[fallthrough]];
                                 case state_red_LED_steps_0100:
-                                case state_red_LED_steps_0256:
-                                case state_red_LED_steps_1000: {
-                                    params[IOF_RED_LED].intensity_steps               = intensity_steps_list[states_LED_views.iOf_intensity_steps_list_red_LED];
-                                    states_LED_views.iOf_intensity_steps_list_red_LED = (states_LED_views.iOf_intensity_steps_list_red_LED + 1) % NUM_INTENSITY_STEPS; // For next time
+                                case state_red_LED_steps_0256: {
+                                    params[IOF_RED_LED].intensity_steps               = intensity_steps_list_short[states_LED_views.iOf_intensity_steps_list_red_LED];
+                                    states_LED_views.iOf_intensity_steps_list_red_LED = (states_LED_views.iOf_intensity_steps_list_red_LED + 1) % NUM_INTENSITY_STEPS_SHORT; // For next time
                                 } break;
 
                                 case state_red_LED_half_range: {
@@ -465,11 +471,29 @@ void softblinker_pwm_button_client_task (
                         } break;
 
                         case IOF_BUTTON_RIGHT: {
-                            // No code, no handling
+                            button_right_taken = true;
                         } break;
 
                         default: {} break; // won't happen, but no need to crash
                     }; // switch
+
+                    if (button_left_taken or button_right_taken) {
+                        if ((buttons_action[IOF_BUTTON_LEFT]  == BUTTON_ACTION_PRESSED_FOR_LONG) and
+                            (buttons_action[IOF_BUTTON_RIGHT] == BUTTON_ACTION_PRESSED_FOR_LONG)) {
+                            // Both pressed for long
+
+                            beep (outP_beeper_high,  0, 200);
+                            beep (outP_beeper_high, 50, 100);
+
+                            set_params_to_default (params);
+                            set_states_LED_views_to_default (params, states_LED_views, synch_all);
+                            write_LEDs_intensity_and_period = true;
+                        } else {
+                            // Code. A single one of these may be pressed for too long and that would be ok
+                        }
+                    } else {
+                        // IOF_BUTTON_CENTER handled above
+                    }
 
                 } else {
                    // No code, no pressed action
