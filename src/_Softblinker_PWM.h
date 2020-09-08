@@ -8,8 +8,8 @@
 
 #ifndef SOFTBLINKER_PWM_H_
 
-    #define IOF_YELLOW_LED 0 // To CONFIG_NUM_SOFTBLIKER_LEDS
-    #define IOF_RED_LED    1 // To CONFIG_NUM_SOFTBLIKER_LEDS
+    #define IOF_LEFT_YELLOW_LED 0 // To CONFIG_NUM_SOFTBLIKER_LEDS
+    #define IOF_RIGHT_RED_LED   1 // To CONFIG_NUM_SOFTBLIKER_LEDS
 
     [[combinable]]
     void softblinker_pwm_button_client_task (

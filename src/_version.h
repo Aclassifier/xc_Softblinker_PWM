@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.5.8" // Not used
-#define AUDIOMUX_VERSION_NUM   0058  // Not used either
+#define AUDIOMUX_VERSION_STR "0.5.9" // Not used
+#define AUDIOMUX_VERSION_NUM   0059  // Not used either
 
+// 0059 08Sep2020          Now at state_all_LEDs_stable_intensity the other button may be used to stop that side's increment or decrement
 // 0058 08Sep2020          state_all_LEDs_stable_intensity now handled when left of right buttons released_now (preparing for next version)
 //                         state_LED_views_e cleared when both left and right buttons are pressed_for_long (same)
 // 0057 07Sep2020          state_LED_views_e removed steps_1000 since that's default. Since button pressed_for_long between each state it's ok to minimize
