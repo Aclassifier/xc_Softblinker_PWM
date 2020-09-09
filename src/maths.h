@@ -24,6 +24,8 @@ unsigned in_range_unsigned_inc_dec (const unsigned value, const unsigned lowest,
     bool    // max_set is true when one above highest
 } in_range_signed_min_max_set (const signed value, const signed lowest, const signed highest);
 
+signed sgn (const signed value);
+
 #else
     #error Nested include MATHS_H_
 #endif

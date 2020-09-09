@@ -117,3 +117,23 @@ unsigned in_range_unsigned_inc_dec (const unsigned value, const unsigned lowest,
     }
     return {return_in_range, return_min_set, return_max_set};
 }
+
+signed sgn (const signed value) {
+
+    signed sgn_ret;
+
+    if (value > 0) {
+        sgn_ret = 1;
+    } else if (value < 0) {
+        sgn_ret = (-1);
+    } else {
+        sgn_ret = 0;
+    }
+    // This would be more expensive in code and data:
+    // if (value == 0) {
+    //     sgn_ret = 0;
+    // } else {
+    //     sgn_ret = value/abs(value);
+    // }
+    return sgn_ret;
+}
