@@ -65,10 +65,10 @@ typedef enum {
     state_all_LEDs_stable_intensity, // 1 beeep beep .. plus some extra beeps on 0, 10 and 100% intensity ++
     state_red_LED_steps_0012,        // 2 beeep beep beep                     steps_0012
     state_red_LED_steps_0100,        // 3 beeep beep beep beep                steps_0100
-    state_red_LED_steps_0256,        // 4 beeep beep beep beep beep           steps_0256 -> now done all NUM_INTENSITY_STEPS_SHORT (steps_1000 not needed since it's default)
+    state_red_LED_steps_0256,        // 4 beeep beep beep beep beep           steps_0256 (steps_1000 is default)
     state_red_LED_half_range,        // 5 beeep beep beep beep beep beep beep
-    state_all_LEDs_synched,          // 6 beeep beeeep + BLUE LED ON!
-    NUM_RED_LED_STATES // ==8 those above
+    state_all_LEDs_synched,          // 6 beeep beeeep + BLUE LED WHEN IN BARRIER
+    NUM_RED_LED_STATES // ==7 those above
     //
 } state_LED_views_e;
 
@@ -223,11 +223,11 @@ void softblinker_pwm_button_client_task (
                 //                  | else next yellow/left period  | ...                                    | else next red/right period
                 // -----------------------------------------------------------------------------------------------------------------------------
                 // released_now     | if steady light LEDs less but | if LEFT or RIGHT pressed_now handle it | if steady light LEDs more but
-                //                  | if right held stop right      | else swap phase and start black/full   | if left held stop left
+                //                  | if also RIGHT halt side       | else swap phase and start black/full   | if also LEFT halt side
                 // -----------------------------------------------------------------------------------------------------------------------------
                 // pressed_for_long |                               | Increase state_LED_views_e             | ...
                 // =============================================================================================================================
-                // pressed_for_long | ->      if LEFT and RIGHT clear to init state, but arbitrary starts      <--
+                // pressed_for_long | LEFT     if LEFT and RIGHT: clear to init state, but arbitrary starts    RIGHT
                 // -----------------------------------------------------------------------------------------------------------------------------
 
                 buttons_action[iof_button] = button_action;

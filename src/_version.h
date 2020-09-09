@@ -15,6 +15,7 @@
 #define AUDIOMUX_VERSION_STR "0.6.0" // Not used
 #define AUDIOMUX_VERSION_NUM   0060  // Not used either
 
+// 0060 09Sep2020          Before H¿vringen
 // 0060 09Sep2020          Detail about this "halt LED" function fixed
 // 0059 08Sep2020          Now at state_all_LEDs_stable_intensity the other button may be used to stop that side's increment or decrement
 // 0058 08Sep2020          state_all_LEDs_stable_intensity now handled when left of right buttons released_now (preparing for next version)
