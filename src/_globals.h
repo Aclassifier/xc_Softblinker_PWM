@@ -57,61 +57,21 @@
 #define IS_MYTARGET_XCORE_200_EXPLORER 2 // Maybe?
 #define IS_MYTARGET_XCORE_XA_MODULE    3
 
-#if (MYTARGET==XCORE-200-EXPLORER)
-    #define IS_MYTARGET                  IS_MYTARGET_XCORE_200_EXPLORER
+#if (MYTARGET==IS_MYTARGET_STARTKIT)
+    #error No PIN placement
+#elif (MYTARGET==XCORE-200-EXPLORER)
+    #define IS_MYTARGET IS_MYTARGET_XCORE_200_EXPLORER
     // Observe PWM=001 for xflash
 #elif (MYTARGET==XCORE-XA-MODULE)
-    #define IS_MYTARGET IS_MYTARGET_XCORE_XA_MODULE
-    //
-    // The XMOS XS1-XAU8A-10-FB265 processor that's on XCORE-XA-MODULE
-    // https://www.xmos.com/download/XS1-XAU8A-10-FB265-Datasheet(1.1).pdf
-    // https://www.farnell.com/datasheets/1886306.pdf (however 8 xCORE)
-    // https://www.xmos.com/download/xCORE-XA-Module-Board-Hardware-Manual(1.0).pdf
-    //
-    // https://www.teigfam.net/oyvind/home/technology/208-my-processor-to-analogue-audio-equaliser-notes/
-    //
-    // XCORE        64KB internal single-cycle SRAM for code and data storage
-    //               8KB internal OTP for application boot code
-    //                   DEBUG via xCORE xTAG
-    // ARM         128KB internal single-cycle SRAM for code and data storage
-    //            1024KB internal SPI FLASH of type AT25FS010 according to XCORE-XA-MODULE.xn. Boots ARM which again may boot XCORE
-    //                   DEBUG via SEGGER J-Link OB
-    // EXTERNAL    512KB external SPI FLASH of type M25P40. Used to boot XCORE
-    //
+    #error XCORE-XA-MODULE I have no idea how to flash!
 #else
     #error NO TARGET DEFINED
 #endif
 
-// CONFIGURATIONS                 (xyz)
-#define CONFIG_NUM_SOFTBLIKER_LEDS 2   // [1,2]
-#define CONFIG_NUM_TASKS_PER_LED    2  // [1,2]
-#define CONFIG_PAR_ON_CORES          8 // [1-8]
-                                       // (xyz)                                8-cores  10-timers 32-chanends  From my_script-xta (code will run even if timing analysis fails!)
-                                       // (11z)  1 LED 1 TASK
-                                       // (113):                Constraints:   C: 2     T: 2      C:  2        Violation: 40.0 ns
-                                       // (12z)  1 LEDS 2 TASKS
-                                       // (121):                Constraints:   C: 2     T: 2      C:  2               error: Failed to find route with id:
-                                       // (122):                Constraints:   C:1      T:1       C:0                 error: Failed to find route with id:
-                                       // (123):                Constraints:   C:  3    T:  3     C:    4      Slack: 760.0 ns
-                                       // (124):                Constraints:   C: 2     T: 2      C:  2               error: Failed to find route with id:
-                                       // (125):                Constraints:   C:  3    T:  3     C:    4      Slack: 750.0 ns
-                                       // (21z)  2 LEDS 1 TASK
-                                       // (212):                Constraints:   C: 2     T: 2      C:  3                error: Failed to find route with id:
-                                       // (213):                Constraints:   C:  3    T:  3     C:   3       Slack: 0.0 ns
-                                       // (214):                Constraints:   C:1      T:1       C:0                 error: Failed to find route with id:
-                                       // (22z)  2 LEDS 2 TASKS
-                                       // (221):                Constraints:   C:  3    T:  3     C:  3               error: Failed to find route with id:
-                                       // (222):                Constraints:   C: 2     T: 2      C:  3               error: Failed to find route with id:
-                                       // (223):                Constraints:   C:    5  T:    5   C:      7    Slack: 760.0 ns
-                                       // (224):                Constraints:   C:1      T:1       C:0                 error: Failed to find route with id:
-                                       // (225):                Constraints:   C:    5  T:    5   C:       7   Slack: 760.0 ns
-                                       // (226):                Constraints:   C:    5  T:    5   C:       7   Slack: 760.0 ns
-                                       // (227):                Constraints:   C:   4   T:   4    C:      6    Slack: 760.0 ns
-                                       // (228):                Constraints:   C:  3    T:  3     C:     3     Slack: 760.0 ns
+#define CONFIG_NUM_SOFTBLIKER_LEDS 2 // Only 2 makes sense in this application
 
-#define CONFIG_BARRIER 2 // 0 No barrier
-                         // 1 interface  Total  6 chanends if [[combine]], 12 else (but none seems to work)
-                         // 2 chan       Total 11 chanends
+#define CONFIG_BARRIER 0 // 0 uses no barrier                            ->  7 chanends
+                         // 1 uses chan based barrier and a barrier task -> 11 chanends
 
 #define DEBUG_PRINT_GLOBAL_APP 0 // 0: all printf off
                                  // 1: controlled locally in each xc file

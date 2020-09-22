@@ -12,9 +12,14 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.6.0" // Not used
-#define AUDIOMUX_VERSION_NUM   0060  // Not used either
-
+#define AUDIOMUX_VERSION_STR "0.6.1" // Not used
+#define AUDIOMUX_VERSION_NUM   0061  // Not used either
+// 0061 11Sep2020          MAJOR CLEAN-UP NOT TESTED
+//                         Must restart somewhat from square 0, so I remove these with the following values used:
+//                             CONFIG_NUM_TASKS_PER_LED 2
+//                             CONFIG_PAR_ON_CORES      8
+//                         Files barrier.h and barrier.xc removed, contents moved to pwm_softblinker.h and pwm_softblinker.xc so that
+//                         a relatively clean CONFIG_BARRIER 0 or 1 may be defined
 // 0060 09Sep2020          Before H¿vringen
 // 0060 09Sep2020          Detail about this "halt LED" function fixed
 // 0059 08Sep2020          Now at state_all_LEDs_stable_intensity the other button may be used to stop that side's increment or decrement
@@ -26,7 +31,7 @@
 // 0055 06Sep2020          barrier_do_chan_task now with outP_external_blue_led_high
 //                         Last commit in sources of:
 //                             blocking_chan_barrier_do_synchronize
-//                             barrier_if_task (but a nwe with this name will reappear)
+//                             barrier_if_task (but a new with this name will reappear)
 // 0054 06Sep2020          softblinker_task_chan_barrier now works non-blocking synch with channels
 //                         Last commit in sources of:
 //                             softblinker_task_chan_barrier_works_on_state_all_LEDs_synched

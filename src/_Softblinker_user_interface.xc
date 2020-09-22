@@ -23,10 +23,9 @@
     #include "_texts_and_constants.h"
     #include "button_press.h"
     #include "maths.h"
-    #include "barrier.h"
     #include "pwm_softblinker.h"
 
-    #include "_Softblinker_PWM.h"
+    #include "_Softblinker_user_interface.h"
 #endif
 
 #define DEBUG_PRINT_TEST 1
@@ -38,6 +37,8 @@
     #define LED_START_DARK_FULL {dark_LED, full_LED} // of start_LED_at_e with CONFIG_NUM_SOFTBLIKER_LEDS elements
     #define LED_START_DARK_DARK {dark_LED, dark_LED} // --"--
 #elif (CONFIG_NUM_SOFTBLIKER_LEDS==1)
+    #error Meaningless, this is coded for three buttons and two LED strips
+    // Some value, to limit compiler errors to the one above only
     #define LED_START_DARK_FULL {dark_LED} // of start_LED_at_e with CONFIG_NUM_SOFTBLIKER_LEDS elements
     #define LED_START_DARK_DARK {full_LED} // --"--
 #endif
@@ -166,7 +167,7 @@ void beep (
 
 
 [[combinable]]
-void softblinker_pwm_button_client_task (
+void softblinker_user_interface_task (
         server button_if      i_buttons_in[BUTTONS_NUM_CLIENTS],
         client softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS],
         out buffered port:1   outP_beeper_high)
@@ -276,15 +277,11 @@ void softblinker_pwm_button_client_task (
                             beep (outP_beeper_high, 0, 100);
                             a_side_button_pressed_while_center = true;
 
-                            #if (CONFIG_NUM_SOFTBLIKER_LEDS==2)
-                                if (iof_LED == IOF_RIGHT_RED_LED) {
-                                    params[IOF_LEFT_YELLOW_LED].period_ms = params[IOF_RIGHT_RED_LED].period_ms; // set the other
-                                } else if (iof_LED == IOF_LEFT_YELLOW_LED) {
-                                    params[IOF_RIGHT_RED_LED].period_ms = params[IOF_LEFT_YELLOW_LED].period_ms; // set the other
-                                } else {}
-                            #elif (CONFIG_NUM_SOFTBLIKER_LEDS==1)
-                                // No code, meaningless
-                            #endif
+                            if (iof_LED == IOF_RIGHT_RED_LED) {
+                                params[IOF_LEFT_YELLOW_LED].period_ms = params[IOF_RIGHT_RED_LED].period_ms; // set the other
+                            } else if (iof_LED == IOF_LEFT_YELLOW_LED) {
+                                params[IOF_RIGHT_RED_LED].period_ms = params[IOF_LEFT_YELLOW_LED].period_ms; // set the other
+                            } else {}
 
                         } else { // Standard
                             if (states_LED_views.state_LED_views == state_all_LEDs_stable_intensity) {

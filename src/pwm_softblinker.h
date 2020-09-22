@@ -8,6 +8,31 @@
 #ifndef PWM_SOFTBLINKER_H_
     #define PWM_SOFTBLINKER_H_
 
+    #ifndef CONFIG_BARRIER
+        #error CONFIG_BARRIER not defined
+    #endif
+    // Background info at C++CSP csp::Barrier Class Reference
+    // https://www.cs.kent.ac.uk/projects/ofa/c++csp/doc/classcsp_1_1_barrier.html
+    typedef enum {synch_none = 0, synch_active = 1} synch_e; // Must be {0,1} like this!
+
+    // Usage in tasks that need synchronization:
+    //   Use "blocking_chan_barrier_doynchronize" (below)
+    //   Restart timer if necessary
+    // ONE send of any value, then one wait on the same channel. This is deadlock free, and contains no state.
+    // However, it will lock out any interface calls in the tasks that use this synchronization. But then
+    // it's those tasks' clients that have ordered this synchronization.
+
+    // See "Using a chanend in both directions" at
+    // https://www.teigfam.net/oyvind/home/technology/141-xc-is-c-plus-x/#using_a_chanend_in_both_directions
+
+    // Observe that a chan is typeless and is therefore deadlock free if sent and received messages are of equal size
+    // Also, sending and receiving on the chanend must be in phase
+
+    [[combinable]]
+    void barrier_do_chan_task (
+            chanend             c_barrier[CONFIG_NUM_SOFTBLIKER_LEDS], // Send and receive id_task_t
+            out buffered port:1 outP_external_blue_led_high); // led_on_high_t
+
     typedef enum {  // Div by 4 ok  // Including zero
         steps_0012          =   12, //   13 values
         steps_0100          =  100, //  101 values
@@ -109,34 +134,28 @@
 
     #define DO_PULSE_ON_START_SYNCH 1 // 0 or 1
 
-    #if (CONFIG_NUM_TASKS_PER_LED==2)
+    [[combinable]]
+    void softblinker_task (
+            const id_task_t       id_task,
+            client pwm_if         if_pwm,
+            server softblinker_if if_softblinker,
+            out buffered port:1   out_port_toggle_on_direction_change); // Toggle when LED max
 
-        [[combinable]]
-        void softblinker_task_chan_barrier (
-                const id_task_t       id_task,
-                client pwm_if         if_pwm,
-                server softblinker_if if_softblinker,
-                out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
-                chanend               c_barrier);
+    [[combinable]]
+    void softblinker_task_chan_barrier (
+            const id_task_t       id_task,
+            client pwm_if         if_pwm,
+            server softblinker_if if_softblinker,
+            out buffered port:1   out_port_toggle_on_direction_change, // Toggle when LED max
+            chanend               c_barrier);
 
-        // Only used when CONFIG_NUM_TASKS_PER_LED==2
-        // TODO This controls the DUTY CYCLE
-        // TODO There is no deadband between the two LEDs, no period that removes overlap, not even when synchronized
-        [[combinable]]
-        void pwm_for_LED_task (
-                const unsigned      id_task, // For printing only
-                server pwm_if       if_pwm,
-                out buffered port:1 out_port_LED);  // LED
-    #endif
-
-    #if (CONFIG_NUM_TASKS_PER_LED==1)
-        [[combinable]]
-        void softblinker_pwm_for_LED_task (
-                const id_task_t       id_task, // For printing only
-                server softblinker_if if_softblinker,
-                out buffered port:1   out_port_LED,  // LED
-                out buffered port:1   out_port_toggle_on_direction_change); // Toggle when LED max
-    #endif
+    // TODO This controls the DUTY CYCLE
+    // TODO There is no deadband between the two LEDs, no period that removes overlap, not even when synchronized
+    [[combinable]]
+    void pwm_for_LED_task (
+            const unsigned      id_task, // For printing only
+            server pwm_if       if_pwm,
+            out buffered port:1 out_port_LED);  // LED
 
 #else
     #error Nested include PWM_SOFTBLINKER_H_
