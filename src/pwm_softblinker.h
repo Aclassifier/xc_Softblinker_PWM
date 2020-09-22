@@ -103,7 +103,7 @@
                 const unsigned         period_ms, // (*)
                 const start_LED_at_e   start_LED_at,
                 const transition_pwm_e transition_pwm,
-                const synch_e          do_multipart_synch);
+                const synch_e          do_multipart_synch); // do_multipart_synch_not_used in softblinker_task
 
         // (*) The period goes for any full DARK to FULL (INTENSITY STEPS) BUT IS NORMALISED TO ACTUAL RANGE!
         //     As the range is decreased, the time it takes to deliver out all port output decreases. Example:

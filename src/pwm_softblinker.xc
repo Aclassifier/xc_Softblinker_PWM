@@ -259,7 +259,7 @@ typedef struct softblinker_context_t {
                         const unsigned         period_ms_, // See Comment in the header file
                         const start_LED_at_e   start_LED_at,
                         const transition_pwm_e transition_pwm,
-                        const const synch_e    do_synchronization_not_used) : {
+                        const const synch_e    do_multipart_synch_not_used) : {
 
                     // It seems like linear is ok for softblinking of a LED, ie. "softblink" is soft
                     // I have not tried any other, like sine. I would assume it would feel like dark_LED longer
@@ -314,7 +314,7 @@ typedef struct softblinker_context_t {
             chanend               c_barrier)
 
     {
-        debug_print ("%u softblinker_task started\n", id_task);
+        debug_print ("%u softblinker_task_chan_barrier started\n", id_task);
 
         softblinker_context_t soft_ct;
         synch_context_t       sync_ct;
@@ -439,7 +439,7 @@ typedef struct softblinker_context_t {
                         const unsigned         period_ms_, // See Comment in the header file
                         const start_LED_at_e   start_LED_at,
                         const transition_pwm_e transition_pwm,
-                        const const synch_e    do_synchronization) : {
+                        const const synch_e    do_multipart_synch) : {
 
                     // It seems like linear is ok for softblinking of a LED, ie. "softblink" is soft
                     // I have not tried any other, like sine. I would assume it would feel like dark_LED longer
@@ -472,8 +472,8 @@ typedef struct softblinker_context_t {
                     unsigned branch = 0; // For log
 
                     if (sync_ct.awaiting_synchronized) {
-                        sync_ct.do_multipart_synch_pending = do_synchronization; // later
-                    } else if ((sync_ct.do_multipart_synch == synch_active) and (do_synchronization == synch_none)) {
+                        sync_ct.do_multipart_synch_pending = do_multipart_synch; // later
+                    } else if ((sync_ct.do_multipart_synch == synch_active) and (do_multipart_synch == synch_none)) {
                         // Ending synch, clean up
                         // Starting synch here is just to save time. It could take several seconds before is_min or is:max is reached
                         start_synch_chan_barrier (id_task, sync_ct, is_anywhere, c_barrier, out_port_toggle_on_direction_change);
@@ -481,7 +481,7 @@ typedef struct softblinker_context_t {
                         sync_ct.do_multipart_synch_pending = synch_none; // later
                         branch = 1;
                     } else {
-                        sync_ct.do_multipart_synch = do_synchronization; // now
+                        sync_ct.do_multipart_synch = do_multipart_synch; // now
                         branch = 2;
                     }
 

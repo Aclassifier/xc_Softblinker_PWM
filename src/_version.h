@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.6.1" // Not used
-#define AUDIOMUX_VERSION_NUM   0061  // Not used either
-// 0061 11Sep2020          MAJOR CLEAN-UP NOT TESTED
+#define AUDIOMUX_VERSION_STR "0.6.2" // Not used
+#define AUDIOMUX_VERSION_NUM   0062  // Not used either
+// 0062 22Sep2020          Some naming
+// 0061 22Sep2020          MAJOR CLEAN-UP NOT TESTED
 //                         Must restart somewhat from square 0, so I remove these with the following values used:
 //                             CONFIG_NUM_TASKS_PER_LED 2
 //                             CONFIG_PAR_ON_CORES      8
