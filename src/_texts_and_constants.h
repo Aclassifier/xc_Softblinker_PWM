@@ -8,17 +8,17 @@
 #ifndef TEXTS_AND_CONSTANTS_H_
 #define TEXTS_AND_CONSTANTS_H_
 
-#define CHAR_UP_ARROW_STR      {CHAR_UP_ARROW,0}    // ↑
-#define CHAR_DOWN_ARROW_STR    {CHAR_DOWN_ARROW,0}  // ↓
+#define CHAR_UP_ARROW_STR      {CHAR_UP_ARROW,0}    // ‚Üë
+#define CHAR_DOWN_ARROW_STR    {CHAR_DOWN_ARROW,0}  // ‚Üì
 #define CHAR_RIGHT_ARROW_STR   {CHAR_RIGHT_ARROW,0} // →
 #define CHAR_LEFT_ARROW_STR    {CHAR_LEFT_ARROW,0}  // ←
 #define CHAR_SMILEY_STR        {CHAR_SMILEY,0}
-#define CHAR_PLUS_MINUS_STR    {CHAR_PLUS_MINUS,0}  // ±
-#define DEGC_CIRCLE_STR        {CHAR_CIRCLE,0}      // °
+#define CHAR_PLUS_MINUS_STR    {CHAR_PLUS_MINUS,0}  // ¬±
+#define DEGC_CIRCLE_STR        {CHAR_CIRCLE,0}      // ¬∞
 #define CHAR_AA_STR            {CHAR_AA,0}
 #define CHAR_aa_STR            {CHAR_aa,0}
 #define CHAR_OE_STR            {CHAR_OE,0}
-#define CHAR_TRIPLE_BAR_STR    {CHAR_TRIPLE_BAR,0}  // ≡
+#define CHAR_TRIPLE_BAR_STR    {CHAR_TRIPLE_BAR,0}  // ‚â°
 #define CHAR_LEADING_SPACE_STR "        "
 
 // ALL ..._LEN include terminating NUL (\0) CHAR! I try to call the others .._NUM etc. (NULL is used for void pointer)
@@ -77,5 +77,5 @@ typedef char now_regulating_at_char_t [REGULATING_AT_NUMS][REGULATING_AT_STRINGS
 #define NOW_REGULATING_AT_CHAR_TEXTS {"#", "2", "1", "=", "H", "-", "0", "?"}
 
 #else
-    #error Nested include TEXTS_AND_CONSTANTS_H_
+    #error Nested include "_texts_and_constants.h"
 #endif

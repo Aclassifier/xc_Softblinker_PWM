@@ -28,7 +28,7 @@
     #include "_Softblinker_user_interface.h"
 #endif
 
-#define DEBUG_PRINT_TEST 1
+#define DEBUG_PRINT_TEST 0
 #define debug_print(fmt, ...) do { if((DEBUG_PRINT_TEST==1) and (DEBUG_PRINT_GLOBAL_APP==1)) printf(fmt, __VA_ARGS__); } while (0)
 
 #define NUM_TIMEOUTS_PER_SECOND 2
@@ -75,7 +75,7 @@ typedef enum {
 
 typedef struct {
     unsigned          iOf_intensity_steps_list_red_LED;
-    unsigned          stable_intensity_steps_0100;
+    unsigned          stable_intensity_steps_1000;
     state_LED_views_e state_LED_views;
     signed            state_all_LEDs_stable_intensity_inc_dec_by;
     //
@@ -105,6 +105,7 @@ void set_params_to_default (params_t params [CONFIG_NUM_SOFTBLIKER_LEDS]) {
     }
 }
 
+#define STABLE_INTENSITY_STEPS_DEFAULT steps_1000
 
 void set_states_LED_views_to_default (
         params_t           params [CONFIG_NUM_SOFTBLIKER_LEDS],
@@ -113,7 +114,7 @@ void set_states_LED_views_to_default (
 
     states_LED_views.iOf_intensity_steps_list_red_LED           = 0; // First, pointing to steps_0012
     states_LED_views.state_LED_views                            = state_red_LED_default;
-    states_LED_views.stable_intensity_steps_0100                = steps_0100;
+    states_LED_views.stable_intensity_steps_1000                = STABLE_INTENSITY_STEPS_DEFAULT;
     states_LED_views.state_all_LEDs_stable_intensity_inc_dec_by = 0;
     synch_all                                                   = DEFAULT_SYNCH;
 
@@ -224,7 +225,8 @@ void softblinker_user_interface_task (
                 //                  | else next yellow/left period  | ...                                    | else next red/right period
                 // -----------------------------------------------------------------------------------------------------------------------------
                 // released_now     | if steady light LEDs less but | if LEFT or RIGHT pressed_now handle it | if steady light LEDs more but
-                //                  | if also RIGHT halt side       | else swap phase and start black/full   | if also LEFT halt side
+                //                  | if also RIGHT either halt the | else swap phase and start black/full   | if also RIGHT either halt the
+                //                  | LED or below 1% down          |                                        | LED or below 1% down
                 // -----------------------------------------------------------------------------------------------------------------------------
                 // pressed_for_long |                               | Increase state_LED_views_e             | ...
                 // =============================================================================================================================
@@ -283,11 +285,14 @@ void softblinker_user_interface_task (
                                 params[IOF_RIGHT_RED_LED].period_ms = params[IOF_LEFT_YELLOW_LED].period_ms; // set the other
                             } else {}
 
+                            write_LEDs_intensity_and_period = true;
+
                         } else { // Standard
                             if (states_LED_views.state_LED_views == state_all_LEDs_stable_intensity) {
 
                                 // No code, no handling of these buttons in this state here. However, the fact that they are pressed
-                                // is tested on (later)
+                                // is tested on (later).
+                                // Therefore no write_LEDs_intensity_and_period here (don't need to first write the old value here, then the new)
 
                             } else { // not state_all_LEDs_stable_intensity
                                 beep (outP_beeper_high, 0, 100);
@@ -302,11 +307,10 @@ void softblinker_user_interface_task (
 
                                 params[iof_LED].period_ms = period_ms_list[iof_period_ms];
                                 params[iof_LED].iof_period_ms_list = iof_period_ms;
+
+                                write_LEDs_intensity_and_period = true;
                             }
                         }
-
-                        write_LEDs_intensity_and_period = true;
-
                     } else {} // not button_left_or_right_taken
 
                 } else if (released_now) {
@@ -353,32 +357,53 @@ void softblinker_user_interface_task (
 
                             if (button_taken_left and inhibit_next_button_released_now_left) {
                                 inhibit_next_button_released_now_left = false;
-                                beep (outP_beeper_high, 0, 25);
                             } else if (button_taken_right and inhibit_next_button_released_now_right) {
                                 inhibit_next_button_released_now_right = false;
-                                beep (outP_beeper_high, 0, 25);
                             } else {
                                 beep (outP_beeper_high, 0, 50);
 
                                 inhibit_next_button_released_now_left  = false;
                                 inhibit_next_button_released_now_right = false;
 
-                                const unsigned steps_10_percent = steps_0100/10;
-                                signed         inc_dec_by;
+                                const unsigned steps_10_percent = STABLE_INTENSITY_STEPS_DEFAULT/10;
+                                const unsigned steps_01_percent = STABLE_INTENSITY_STEPS_DEFAULT/100;
+
+                                bool   do_steps_0001 = false;
+                                signed inc_dec_by;
 
                                 if (button_taken_left) { // if steady light LEDs less
-                                    if (states_LED_views.stable_intensity_steps_0100 <= steps_10_percent) {
-                                        // '<=' in test gives [100..20,10,9,8,7,6,5,4,3,2,1,0]
-                                        inc_dec_by = -1;
+                                    if (states_LED_views.stable_intensity_steps_1000 <= steps_01_percent) {
+                                        if (pressed_right) {
+                                            inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/1000);
+                                            // [10,9,8,7,6,5,4,3,2,1,0]
+                                            do_steps_0001 = true;
+                                            inhibit_next_button_released_now_right = true;
+                                        } else {
+                                            // '<=' in test gives [1000..200,100,90,80,70,60,50,40,30,20,10,0]
+                                            inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/100);
+                                        }
+                                    } else if (states_LED_views.stable_intensity_steps_1000 <= steps_10_percent) {
+                                        // '<=' in test gives [1000..200,100,90,80,70,60,50,40,30,20,10,0]
+                                        inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/100);
                                     } else {
-                                        inc_dec_by = -10;
+                                        inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/10);
                                     }
                                 } else if (button_taken_right) { // if steady light LEDs more
-                                    if (states_LED_views.stable_intensity_steps_0100 < steps_10_percent) {
-                                        // '<' in test gives [0,1,2,3,4,5,6,7,8,9,10,20..100]
-                                        inc_dec_by = 1;
+                                    if (states_LED_views.stable_intensity_steps_1000 <= steps_01_percent) {
+                                        if (pressed_left) {
+                                            inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/1000);
+                                            // [0,1,2,3,4,5,6,7,8,9,10]
+                                            do_steps_0001 = true;
+                                            inhibit_next_button_released_now_left = true;
+                                        } else {
+                                            // '<' in test gives [0,10,20,30,40,50,60,70,80,90,100,200..1000]
+                                            inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/100);
+                                        }
+                                    } else if (states_LED_views.stable_intensity_steps_1000 < steps_10_percent) {
+                                        // '<' in test gives [0,10,20,30,40,50,60,70,80,90,100,200..1000]
+                                        inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/100);
                                     } else {
-                                        inc_dec_by = 10;
+                                        inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/10);
                                     }
                                 } else {
                                     inc_dec_by = 0;
@@ -392,45 +417,58 @@ void softblinker_user_interface_task (
                                     // Set old value into all in case inhibit is used, because then we would not want the halted value
                                     // to to get an increment as a side effect from the first inhibit. Usually this will be overwritten by new value.
                                     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                        params[ix].max_intensity = states_LED_views.stable_intensity_steps_0100;
-                                        params[ix].min_intensity = states_LED_views.stable_intensity_steps_0100;
+                                        params[ix].max_intensity = states_LED_views.stable_intensity_steps_1000;
+                                        params[ix].min_intensity = states_LED_views.stable_intensity_steps_1000;
                                     }
                                 } else {}
 
-                                states_LED_views.stable_intensity_steps_0100 = // ..then this
-                                        in_range_unsigned_inc_dec (states_LED_views.stable_intensity_steps_0100, 0, steps_0100, inc_dec_by);
+                                if (not do_steps_0001) {
+                                    //  Clean-up after single-values like 45 -> 40. 101 -> 100 etc.
+                                    states_LED_views.stable_intensity_steps_1000 = (states_LED_views.stable_intensity_steps_1000 / 10) * 10;
+                                } else {}
+
+                                states_LED_views.stable_intensity_steps_1000 = // ..then this
+                                        in_range_unsigned_inc_dec (states_LED_views.stable_intensity_steps_1000, 0, STABLE_INTENSITY_STEPS_DEFAULT, inc_dec_by);
 
                                 if (inc_dec_by_changed_sgn) {
-                                    beep (outP_beeper_high, 50, 25);
-                                } else if (states_LED_views.stable_intensity_steps_0100 == 0) {
                                     beep (outP_beeper_high, 50, 50);
-                                } else if (states_LED_views.stable_intensity_steps_0100 == steps_10_percent) {
+                                } else if (states_LED_views.stable_intensity_steps_1000 == 0) {
+                                    beep (outP_beeper_high, 50, 75);
+                                } else if (states_LED_views.stable_intensity_steps_1000 == steps_10_percent) {
                                     beep (outP_beeper_high, 50, 100);
-                                } else if (states_LED_views.stable_intensity_steps_0100 == steps_0100) {
+                                } else if (states_LED_views.stable_intensity_steps_1000 == STABLE_INTENSITY_STEPS_DEFAULT) {
                                     beep (outP_beeper_high, 50, 200);
+                                } else if (do_steps_0001) {
+                                    beep (outP_beeper_high, 50, 25);
                                 } else {}
 
                                 // Now the other button may be used to halt that side's increment or decrement
                                 //
-                                if (button_taken_left and (pressed_right or long_right)) {
+                                if (do_steps_0001) {
+                                    // Set both LEDS when either left or right button is pressed
+                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                                        params[ix].max_intensity = states_LED_views.stable_intensity_steps_1000;
+                                        params[ix].min_intensity = states_LED_views.stable_intensity_steps_1000;
+                                    }
+                                } else if (button_taken_left and (pressed_right or long_right)) {
                                     // Only set left LED when right button is held for inhibit
-                                    params[IOF_LEFT_YELLOW_LED].max_intensity = states_LED_views.stable_intensity_steps_0100;
-                                    params[IOF_LEFT_YELLOW_LED].min_intensity = states_LED_views.stable_intensity_steps_0100;
+                                    params[IOF_LEFT_YELLOW_LED].max_intensity = states_LED_views.stable_intensity_steps_1000;
+                                    params[IOF_LEFT_YELLOW_LED].min_intensity = states_LED_views.stable_intensity_steps_1000;
 
                                     inhibit_next_button_released_now_right = true;
                                     beep (outP_beeper_high, 50, 25);
                                 } else if (button_taken_right and (pressed_left or long_left)) {
                                     // Only set right LED when left button is held for inhibit
-                                    params[IOF_RIGHT_RED_LED].max_intensity = states_LED_views.stable_intensity_steps_0100;
-                                    params[IOF_RIGHT_RED_LED].min_intensity = states_LED_views.stable_intensity_steps_0100;
+                                    params[IOF_RIGHT_RED_LED].max_intensity = states_LED_views.stable_intensity_steps_1000;
+                                    params[IOF_RIGHT_RED_LED].min_intensity = states_LED_views.stable_intensity_steps_1000;
 
                                     inhibit_next_button_released_now_left = true;
                                     beep (outP_beeper_high, 50, 25);
-                                } else {
+                                } else { // same as do_steps_0001
                                     // Set both LEDS when either left or right button is pressed
                                     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                        params[ix].max_intensity = states_LED_views.stable_intensity_steps_0100;
-                                        params[ix].min_intensity = states_LED_views.stable_intensity_steps_0100;
+                                        params[ix].max_intensity = states_LED_views.stable_intensity_steps_1000;
+                                        params[ix].min_intensity = states_LED_views.stable_intensity_steps_1000;
                                     }
                                 }
 
@@ -481,11 +519,13 @@ void softblinker_user_interface_task (
                                     inhibit_next_button_released_now_left  = false;
                                     inhibit_next_button_released_now_right = false;
 
+                                    states_LED_views.stable_intensity_steps_1000 = STABLE_INTENSITY_STEPS_DEFAULT;
+
                                     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
                                         params[ix].period_ms       = DEFAULT_SOFTBLINK_PERIOD_MS; // Would not matter since it's stable anyhow
-                                        params[ix].intensity_steps = steps_0100;
-                                        params[ix].max_intensity   = states_LED_views.stable_intensity_steps_0100;
-                                        params[ix].min_intensity   = params[ix].max_intensity;
+                                        params[ix].intensity_steps = STABLE_INTENSITY_STEPS_DEFAULT;
+                                        params[ix].max_intensity   = STABLE_INTENSITY_STEPS_DEFAULT;
+                                        params[ix].min_intensity   = STABLE_INTENSITY_STEPS_DEFAULT;
                                     }
 
                                 } break;

@@ -6,13 +6,9 @@
  */
 
 #ifndef GLOBALS_H_
-#define GLOBALS_H_
+    #define GLOBALS_H_
 
-#ifdef GLOBALS_H_ // To show that the below may also be defined in library space
-
-    // BOOLEAN #include <stdbool.h> if C99
-    // See http://www.teigfam.net/oyvind/home/technology/165-xc-code-examples/#bool
-    typedef enum {false,true} bool; // 0,1 This typedef matches any integer-type type like long, int, unsigned, char, bool
+    #include "_lib_pwm_softblinker_params.h" // Common
 
     #define min(a,b) (((a)<(b))?(a):(b))
     #define max(a,b) (((a)>(b))?(a):(b))
@@ -21,10 +17,6 @@
     #define t_swap(type,a,b) {type t = a; a = b; b = t;}
 
     #define NUM_ELEMENTS(array) (sizeof(array) / sizeof(array[0])) // Kernighan & Pike p22
-
-    typedef signed int time32_t; // signed int (=signed) or unsigned int (=unsigned) both ok, as long as they are monotoneously increasing
-                                 // XC/XMOS 100 MHz increment every 10 ns for max 2exp32 = 4294967296,
-                                 // ie. divide by 100 mill = 42.9.. seconds
 
     typedef enum {low_is_on,  high_is_off} led_on_low_t;  // 0 is led_on
     typedef enum {low_is_off, high_is_on}  led_on_high_t; // 1 is led_on
@@ -45,35 +37,26 @@
     //     measure up to a total of 2exp31 / (100 mill) = 21s.
 
     typedef enum {beep_off = 0, beep_now = 1} beep_high_e; // Must be {0,1} like this! Using boolean expression on it
-    typedef enum {LED_off  = 0, LED_on   = 1} LED_high_e;  // Must be {0,1} like this! Using boolean expression on it
-    typedef enum {pin_low  = 0, pin_high = 1} port_pin_e;  // Must be {0,1} like this! Using boolean expression on it
 
-    typedef unsigned id_task_t;
 
-#endif
+    #define IS_MYTARGET_VOID               0
+    #define IS_MYTARGET_STARTKIT           1 // Not used here
+    #define IS_MYTARGET_XCORE_200_EXPLORER 2 // Maybe?
+    #define IS_MYTARGET_XCORE_XA_MODULE    3
 
-#define IS_MYTARGET_VOID               0
-#define IS_MYTARGET_STARTKIT           1 // Not used here
-#define IS_MYTARGET_XCORE_200_EXPLORER 2 // Maybe?
-#define IS_MYTARGET_XCORE_XA_MODULE    3
+    #if (MYTARGET==IS_MYTARGET_STARTKIT)
+        #error No PIN placement
+    #elif (MYTARGET==XCORE-200-EXPLORER)
+        #define IS_MYTARGET IS_MYTARGET_XCORE_200_EXPLORER
+        // Observe PWM=001 for xflash
+    #elif (MYTARGET==XCORE-XA-MODULE)
+        #error XCORE-XA-MODULE I have no idea how to flash!
+    #else
+        #error NO TARGET DEFINED
+    #endif
 
-#if (MYTARGET==IS_MYTARGET_STARTKIT)
-    #error No PIN placement
-#elif (MYTARGET==XCORE-200-EXPLORER)
-    #define IS_MYTARGET IS_MYTARGET_XCORE_200_EXPLORER
-    // Observe PWM=001 for xflash
-#elif (MYTARGET==XCORE-XA-MODULE)
-    #error XCORE-XA-MODULE I have no idea how to flash!
+    #define CONFIG_BARRIER 1 // 0 uses no barrier                            ->  7 chanends
+                             // 1 uses chan based barrier and a barrier task -> 11 chanends
 #else
-    #error NO TARGET DEFINED
-#endif
-
-#define CONFIG_NUM_SOFTBLIKER_LEDS 2 // Only 2 makes sense in this application
-
-#define CONFIG_BARRIER 0 // 0 uses no barrier                            ->  7 chanends
-                         // 1 uses chan based barrier and a barrier task -> 11 chanends
-
-#define DEBUG_PRINT_GLOBAL_APP 0 // 0: all printf off
-                                 // 1: controlled locally in each xc file
-
+    #error Nested include "_globals.h"
 #endif

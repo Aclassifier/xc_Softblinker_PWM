@@ -177,6 +177,12 @@
 									<listOptionValue builtIn="false" value="&quot;${XMOS_TOOL_PATH}/target/include/xc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${XMOS_TOOL_PATH}/target/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${XMOS_TOOL_PATH}/target/include/clang&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_softblinker_pwm}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_softblinker_pwm/api}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_softblinker_pwm/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_pwm_softblinker/api}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_pwm_softblinker}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_pwm_softblinker/src}&quot;"/>
 								</option>
 								<inputType id="com.xmos.cdt.xc.compiler.input.1900000666" name="XC" superClass="com.xmos.cdt.xc.compiler.input"/>
 							</tool>
@@ -480,6 +486,12 @@
 								<option id="com.xmos.c.compiler.option.include.paths.1564642119" name="com.xmos.c.compiler.option.include.paths" superClass="com.xmos.c.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${XMOS_TOOL_PATH}/target/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${XMOS_TOOL_PATH}/target/include/clang&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_softblinker_pwm}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_softblinker_pwm/api}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_softblinker_pwm/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_pwm_softblinker/api}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_pwm_softblinker}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_pwm_softblinker/src}&quot;"/>
 								</option>
 								<inputType id="com.xmos.cdt.c.compiler.input.c.630703596" name="C" superClass="com.xmos.cdt.c.compiler.input.c"/>
 							</tool>
@@ -788,6 +800,12 @@
 									<listOptionValue builtIn="false" value="&quot;${XMOS_TOOL_PATH}/target/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${XMOS_TOOL_PATH}/target/include/clang&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${XMOS_TOOL_PATH}/target/include/c++/v1&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_softblinker_pwm}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_softblinker_pwm/api}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_softblinker_pwm/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_pwm_softblinker/api}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_pwm_softblinker}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_pwm_softblinker/src}&quot;"/>
 								</option>
 								<inputType id="com.xmos.cdt.cxx.compiler.input.cpp.495620770" name="C++" superClass="com.xmos.cdt.cxx.compiler.input.cpp"/>
 							</tool>

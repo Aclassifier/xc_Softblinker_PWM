@@ -12,8 +12,9 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.6.2" // Not used
-#define AUDIOMUX_VERSION_NUM   0062  // Not used either
+#define AUDIOMUX_VERSION_STR "0.6.3" // Not used
+#define AUDIOMUX_VERSION_NUM   0063  // Not used either
+// 0063 26Sep2020          1/1000 steps from 1% and down introduced. The eye can see 1/1000!
 // 0062 22Sep2020          Some naming
 // 0061 22Sep2020          MAJOR CLEAN-UP NOT TESTED
 //                         Must restart somewhat from square 0, so I remove these with the following values used:
