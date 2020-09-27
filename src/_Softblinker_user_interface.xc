@@ -78,6 +78,10 @@ typedef struct {
     unsigned          stable_intensity_steps_1000;
     state_LED_views_e state_LED_views;
     signed            state_all_LEDs_stable_intensity_inc_dec_by;
+    bool              inhibit_next_button_released_now_left;
+    bool              inhibit_next_button_released_now_right;
+    bool              halt_left;
+    bool              halt_right;
     //
 } states_LED_views_t;
 
@@ -116,6 +120,10 @@ void set_states_LED_views_to_default (
     states_LED_views.state_LED_views                            = state_red_LED_default;
     states_LED_views.stable_intensity_steps_1000                = STABLE_INTENSITY_STEPS_DEFAULT;
     states_LED_views.state_all_LEDs_stable_intensity_inc_dec_by = 0;
+    states_LED_views.inhibit_next_button_released_now_left      = false;
+    states_LED_views.inhibit_next_button_released_now_right     = false;
+    states_LED_views.halt_left                                  = false;
+    states_LED_views.halt_right                                 = false;
     synch_all                                                   = DEFAULT_SYNCH;
 
     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
@@ -186,9 +194,6 @@ void softblinker_user_interface_task (
 
     const unsigned          period_ms_list             [PERIOD_MS_LIST_LEN]        = PERIOD_MS_LIST;
     const intensity_steps_e intensity_steps_list_short [NUM_INTENSITY_STEPS_SHORT] = INTENSITY_STEPS_LIST_SHORT;
-
-    bool inhibit_next_button_released_now_left  = false;
-    bool inhibit_next_button_released_now_right = false;
 
     for (unsigned ix = 0; ix < BUTTONS_NUM_CLIENTS; ix++) {
         buttons_action[ix] = BUTTON_ACTION_VOID;
@@ -355,15 +360,15 @@ void softblinker_user_interface_task (
                     if (button_taken_left or button_taken_right) {
                         if (states_LED_views.state_LED_views == state_all_LEDs_stable_intensity) {
 
-                            if (button_taken_left and inhibit_next_button_released_now_left) {
-                                inhibit_next_button_released_now_left = false;
-                            } else if (button_taken_right and inhibit_next_button_released_now_right) {
-                                inhibit_next_button_released_now_right = false;
+                            if (button_taken_left and states_LED_views.inhibit_next_button_released_now_left) {
+                                states_LED_views.inhibit_next_button_released_now_left = false;
+                            } else if (button_taken_right and states_LED_views.inhibit_next_button_released_now_right) {
+                                states_LED_views.inhibit_next_button_released_now_right = false;
                             } else {
                                 beep (outP_beeper_high, 0, 50);
 
-                                inhibit_next_button_released_now_left  = false;
-                                inhibit_next_button_released_now_right = false;
+                                states_LED_views.inhibit_next_button_released_now_left  = false;
+                                states_LED_views.inhibit_next_button_released_now_right = false;
 
                                 const unsigned steps_10_percent = STABLE_INTENSITY_STEPS_DEFAULT/10;
                                 const unsigned steps_01_percent = STABLE_INTENSITY_STEPS_DEFAULT/100;
@@ -373,11 +378,11 @@ void softblinker_user_interface_task (
 
                                 if (button_taken_left) { // if steady light LEDs less
                                     if (states_LED_views.stable_intensity_steps_1000 <= steps_01_percent) {
-                                        if (pressed_right) {
+                                        if (pressed_right or long_right) {
                                             inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/1000);
                                             // [10,9,8,7,6,5,4,3,2,1,0]
                                             do_steps_0001 = true;
-                                            inhibit_next_button_released_now_right = true;
+                                            states_LED_views.inhibit_next_button_released_now_right = true;
                                         } else {
                                             // '<=' in test gives [1000..200,100,90,80,70,60,50,40,30,20,10,0]
                                             inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/100);
@@ -390,11 +395,11 @@ void softblinker_user_interface_task (
                                     }
                                 } else if (button_taken_right) { // if steady light LEDs more
                                     if (states_LED_views.stable_intensity_steps_1000 <= steps_01_percent) {
-                                        if (pressed_left) {
+                                        if (pressed_left or long_left) {
                                             inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/1000);
                                             // [0,1,2,3,4,5,6,7,8,9,10]
                                             do_steps_0001 = true;
-                                            inhibit_next_button_released_now_left = true;
+                                            states_LED_views.inhibit_next_button_released_now_left = true;
                                         } else {
                                             // '<' in test gives [0,10,20,30,40,50,60,70,80,90,100,200..1000]
                                             inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/100);
@@ -410,10 +415,13 @@ void softblinker_user_interface_task (
                                 }
 
                                 const bool inc_dec_by_changed_sgn = (sgn(states_LED_views.state_all_LEDs_stable_intensity_inc_dec_by) != sgn(inc_dec_by));
+                                const bool halt_right             = button_taken_left  and (pressed_right or long_right);
+                                const bool halt_left              = button_taken_right and (pressed_left  or long_left);
+                                const bool halt_change            = (halt_right != states_LED_views.halt_right) or (halt_left != states_LED_views.halt_left);
 
                                 states_LED_views.state_all_LEDs_stable_intensity_inc_dec_by = inc_dec_by; // Would not have been allowed in occam! (since there is a const derived from it in scope)
 
-                                if (inc_dec_by_changed_sgn) { // First this..
+                                if (inc_dec_by_changed_sgn or halt_change) { // First this..
                                     // Set old value into all in case inhibit is used, because then we would not want the halted value
                                     // to to get an increment as a side effect from the first inhibit. Usually this will be overwritten by new value.
                                     for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
@@ -433,13 +441,15 @@ void softblinker_user_interface_task (
                                 if (inc_dec_by_changed_sgn) {
                                     beep (outP_beeper_high, 50, 50);
                                 } else if (states_LED_views.stable_intensity_steps_1000 == 0) {
-                                    beep (outP_beeper_high, 50, 75);
+                                    beep (outP_beeper_high, 200, 250);
+                                } else if (states_LED_views.stable_intensity_steps_1000 == steps_01_percent) {
+                                    beep (outP_beeper_high, 50, 150);
                                 } else if (states_LED_views.stable_intensity_steps_1000 == steps_10_percent) {
-                                    beep (outP_beeper_high, 50, 100);
-                                } else if (states_LED_views.stable_intensity_steps_1000 == STABLE_INTENSITY_STEPS_DEFAULT) {
                                     beep (outP_beeper_high, 50, 200);
+                                } else if (states_LED_views.stable_intensity_steps_1000 == STABLE_INTENSITY_STEPS_DEFAULT) {
+                                    beep (outP_beeper_high, 200, 250);
                                 } else if (do_steps_0001) {
-                                    beep (outP_beeper_high, 50, 25);
+                                    beep (outP_beeper_high, 100, 50);
                                 } else {}
 
                                 // Now the other button may be used to halt that side's increment or decrement
@@ -450,19 +460,21 @@ void softblinker_user_interface_task (
                                         params[ix].max_intensity = states_LED_views.stable_intensity_steps_1000;
                                         params[ix].min_intensity = states_LED_views.stable_intensity_steps_1000;
                                     }
-                                } else if (button_taken_left and (pressed_right or long_right)) {
+                                } else if (halt_right) {
                                     // Only set left LED when right button is held for inhibit
                                     params[IOF_LEFT_YELLOW_LED].max_intensity = states_LED_views.stable_intensity_steps_1000;
                                     params[IOF_LEFT_YELLOW_LED].min_intensity = states_LED_views.stable_intensity_steps_1000;
 
-                                    inhibit_next_button_released_now_right = true;
+                                    states_LED_views.inhibit_next_button_released_now_right = true;
+                                    states_LED_views.halt_right = true;
                                     beep (outP_beeper_high, 50, 25);
-                                } else if (button_taken_right and (pressed_left or long_left)) {
+                                } else if (halt_left) {
                                     // Only set right LED when left button is held for inhibit
                                     params[IOF_RIGHT_RED_LED].max_intensity = states_LED_views.stable_intensity_steps_1000;
                                     params[IOF_RIGHT_RED_LED].min_intensity = states_LED_views.stable_intensity_steps_1000;
 
-                                    inhibit_next_button_released_now_left = true;
+                                    states_LED_views.inhibit_next_button_released_now_left = true;
+                                    states_LED_views.halt_left = true;
                                     beep (outP_beeper_high, 50, 25);
                                 } else { // same as do_steps_0001
                                     // Set both LEDS when either left or right button is pressed
@@ -484,10 +496,15 @@ void softblinker_user_interface_task (
                     }
 
                 } else if (pressed_for_long) {
+
+                    // since released_now will never happen:
+                    states_LED_views.inhibit_next_button_released_now_left  = false;
+                    states_LED_views.inhibit_next_button_released_now_right = false;
+
                     switch (iof_button) {
 
                         case IOF_BUTTON_LEFT: {
-                            // no code, as long_left cathes it
+                            // no code, as long_left catches it
                         } break;
 
                         case IOF_BUTTON_CENTER: { // IOF_RIGHT_RED_LED:
@@ -516,8 +533,8 @@ void softblinker_user_interface_task (
 
                                     synch_all = DEFAULT_SYNCH; // Set to all at write_LEDs_intensity_and_period
 
-                                    inhibit_next_button_released_now_left  = false;
-                                    inhibit_next_button_released_now_right = false;
+                                    states_LED_views.inhibit_next_button_released_now_left  = false;
+                                    states_LED_views.inhibit_next_button_released_now_right = false;
 
                                     states_LED_views.stable_intensity_steps_1000 = STABLE_INTENSITY_STEPS_DEFAULT;
 
@@ -568,7 +585,7 @@ void softblinker_user_interface_task (
                         } break;
 
                         case IOF_BUTTON_RIGHT: {
-                            // no code, as long_right cathes it
+                            // no code, as long_right catches it
                         } break;
 
                         default: {} break; // won't happen, but no need to crash
@@ -578,13 +595,13 @@ void softblinker_user_interface_task (
                         // Both pressed for long
 
                         beep (outP_beeper_high,  0, 200);
-                        beep (outP_beeper_high, 50, 100);
+                        beep (outP_beeper_high, 50, 300);
 
                         set_params_to_default (params);
                         set_states_LED_views_to_default (params, states_LED_views, synch_all);
                         write_LEDs_intensity_and_period = true;
                     } else {
-                        // Code. A single one of these may be pressed for too long and that would be ok
+                        // Code. A single one of these may be pressed for long and that would be ok
                     }
 
                 } else {

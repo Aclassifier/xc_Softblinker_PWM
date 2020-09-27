@@ -12,9 +12,11 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.6.3" // Not used
-#define AUDIOMUX_VERSION_NUM   0063  // Not used either
-// 0063 26Sep2020          1/1000 steps from 1% and down introduced. The eye can see 1/1000!
+#define AUDIOMUX_VERSION_STR "0.6.4" // Not used
+#define AUDIOMUX_VERSION_NUM   0064  // Not used either
+// 0064 27Sep2020          Some problem with inhibit_next_button_released_now_ now rectified, and somewhat different beep pattern
+//                         lib_pwm_softblinker(0.8.1)
+// 0063 25Sep2020          1/1000 steps from 1% and down introduced. The eye can see 1/1000!
 // 0062 22Sep2020          Some naming
 // 0061 22Sep2020          MAJOR CLEAN-UP NOT TESTED
 //                         Must restart somewhat from square 0, so I remove these with the following values used:
