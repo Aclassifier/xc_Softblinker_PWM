@@ -57,6 +57,7 @@
 
     #define CONFIG_BARRIER 1 // 0 uses no barrier                            ->  7 chanends
                              // 1 uses chan based barrier and a barrier task -> 11 chanends
+    CONFIG_NUM_TASKS_PER_LED 1 //
 #else
     #error Nested include "_globals.h"
 #endif

@@ -237,6 +237,9 @@ void softblinker_user_interface_task (
                 // =============================================================================================================================
                 // pressed_for_long | LEFT     if LEFT and RIGHT: clear to init state, but arbitrary starts    RIGHT
                 // -----------------------------------------------------------------------------------------------------------------------------
+                // Beeping as some pattern to distinguish button actions. If no beeping then that press has been disabled by previous press to
+                // avoid some present state becoming changed when not wanted. See inhibit_next_button_released_now_.. (some pressed_now must not
+                // be overwritten by released_now)
 
                 buttons_action[iof_button] = button_action;
 
