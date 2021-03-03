@@ -135,6 +135,7 @@ int main() {
         #elif (CONFIG_BARRIER==1)
             on tile[0]: {
                 chan c_barrier[CONFIG_NUM_SOFTBLIKER_LEDS];
+                //[[combine]]
                 par {
                     barrier_do_chan_task (c_barrier, outP_external_blue_led_high);
 
