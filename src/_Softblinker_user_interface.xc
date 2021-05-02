@@ -61,6 +61,7 @@ typedef struct params_t {
     unsigned          iof_period_ms_list;
 } params_t;
 
+// 2May2021:
 typedef enum {
     state_red_LED_default,           // 0 beeep
     state_all_LEDs_stable_intensity, // 1 beeep beep .. plus some extra beeps on 0, 10 and 100% intensity ++
@@ -223,20 +224,21 @@ void softblinker_user_interface_task (
                 bool button_taken_left               = false;
                 bool button_taken_right              = false;
 
+                // 2May2021: (in _Softblinker_user_interface.xc)
+                // ---------------------------------------------------------------------------------------------------------------------------------------
+                // BUTTONS          | LEFT                                | CENTER                                 | RIGHT
+                // ---------------------------------------------------------------------------------------------------------------------------------------
+                // pressed_now      | if also CENTER set red/right period | ...                                    | if also CENTER set yellow/left period
+                //                  | else next yellow/left period        | ...                                    | else next red/right period
                 // -----------------------------------------------------------------------------------------------------------------------------
-                // BUTTONS          | LEFT                          | CENTER                                 | RIGHT
-                // -----------------------------------------------------------------------------------------------------------------------------
-                // pressed_now      | if also CENTER set red period | ...                                    | if also CENTER set yellow period
-                //                  | else next yellow/left period  | ...                                    | else next red/right period
-                // -----------------------------------------------------------------------------------------------------------------------------
-                // released_now     | if steady light LEDs less but | if LEFT or RIGHT pressed_now handle it | if steady light LEDs more but
-                //                  | if also RIGHT either halt the | else swap phase and start black/full   | if also RIGHT either halt the
-                //                  | LED or below 1% down          |                                        | LED or below 1% down
-                // -----------------------------------------------------------------------------------------------------------------------------
-                // pressed_for_long |                               | Increase state_LED_views_e             | ...
-                // =============================================================================================================================
-                // pressed_for_long | LEFT     if LEFT and RIGHT: clear to init state, but arbitrary starts    RIGHT
-                // -----------------------------------------------------------------------------------------------------------------------------
+                // released_now     | if steady light LEDs less but       | if LEFT or RIGHT pressed_now handle it | if steady light LEDs more but
+                //                  | if also RIGHT either halt the       | else swap phase and start black/full   | if also RIGHT either halt the
+                //                  | LED or below 1% down                |                                        | LED or below 1% down
+                // --------------------------------------------------------------------------------------------------------------------------------------
+                // pressed_for_long |                                     | Increase state_LED_views_e             | ...
+                // ======================================================================================================================================
+                // pressed_for_long | LEFT       | if LEFT and RIGHT: clear to init state, but arbitrary starts    | RIGHT
+                // --------------------------------------------------------------------------------------------------------------------------------------
                 // Beeping as some pattern to distinguish button actions. If no beeping then that press has been disabled by previous press to
                 // avoid some present state becoming changed when not wanted. See inhibit_next_button_released_now_.. (some pressed_now must not
                 // be overwritten by released_now)

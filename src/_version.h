@@ -15,6 +15,10 @@
 #define AUDIOMUX_VERSION_STR "0.6.6" // Not used
 #define AUDIOMUX_VERSION_NUM   0066  // Not used either
 
+// 0066 01May2021          Just some comments for _notes.txt ("manual"). xTIMEcomposer 14.4.1:
+//                             Constraints tile[0]: C:8/6 T:10/6 C:32/11 M:20800 S:3852 C:15472 D:1476
+//                             Constraints tile[1]: C:8/1 T:10/1 C:32/00 M:02952 S:0348 C:02112 D:0492
+//                             Pass with 14 unknowns, Num Paths: 8, Slack: 16.0 ns, Required: 1.0 us, Worst: 984.0 ns, Min Core Frequency: 492 MHz
 // 0066 03Mar2021          No change in code, just showing that if channels used then [[combinable]] compiles but [[combine]] par not accepted
 // 0065 09Dec2020          Doing the CONFIG_NUM_TASKS_PER_LED deimension again
 // 0064 27Sep2020          Some problem with inhibit_next_button_released_now_ now rectified, and somewhat different beep pattern
