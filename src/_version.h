@@ -12,9 +12,11 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.6.6" // Not used
-#define AUDIOMUX_VERSION_NUM   0066  // Not used either
+#define AUDIOMUX_VERSION_STR "0.7.0" // Not used
+#define AUDIOMUX_VERSION_NUM   0070  // Not used either
 
+// 0070 26Aug2021 PWM=011  Moved all into ui_context_t ctx;
+// 0067 etc                Not used, but comitted
 // 0066 01May2021          Just some comments for _notes.txt ("manual"). xTIMEcomposer 14.4.1:
 //                             Constraints tile[0]: C:8/6 T:10/6 C:32/11 M:20800 S:3852 C:15472 D:1476
 //                             Constraints tile[1]: C:8/1 T:10/1 C:32/00 M:02952 S:0348 C:02112 D:0492
