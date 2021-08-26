@@ -186,6 +186,415 @@ typedef struct ui_context_t {
     intensity_steps_e  intensity_steps_list_short [NUM_INTENSITY_STEPS_SHORT]; // was const
 } ui_context_t; // PWM=011
 
+void handle_button (const int iof_button,
+        const button_action_t button_action,
+        ui_context_t          &ctx,
+        client softblinker_if if_softblinker[CONFIG_NUM_SOFTBLIKER_LEDS],
+        out buffered port:1   outP_beeper_high)
+{
+
+    bool write_LEDs_intensity_and_period = false;
+    bool button_taken_left               = false;
+    bool button_taken_right              = false;
+
+    // 2May2021: (in _Softblinker_user_interface.xc)
+    // ---------------------------------------------------------------------------------------------------------------------------------------
+    // BUTTONS          | LEFT                                | CENTER                                 | RIGHT
+    // ---------------------------------------------------------------------------------------------------------------------------------------
+    // pressed_now      | if also CENTER set red/right period | ...                                    | if also CENTER set yellow/left period
+    //                  | else next yellow/left period        | ...                                    | else next red/right period
+    // -----------------------------------------------------------------------------------------------------------------------------
+    // released_now     | if steady light LEDs less but       | if LEFT or RIGHT pressed_now handle it | if steady light LEDs more but
+    //                  | if also RIGHT either halt the       | else swap phase and start black/full   | if also RIGHT either halt the
+    //                  | LED or below 1% down                |                                        | LED or below 1% down
+    // --------------------------------------------------------------------------------------------------------------------------------------
+    // pressed_for_long |                                     | Increase state_LED_views_e             | ...
+    // ======================================================================================================================================
+    // pressed_for_long | LEFT       | if LEFT and RIGHT: clear to init state, but arbitrary starts    | RIGHT
+    // --------------------------------------------------------------------------------------------------------------------------------------
+    // Beeping as some pattern to distinguish button actions. If no beeping then that press has been disabled by previous press to
+    // avoid some present state becoming changed when not wanted. See inhibit_next_button_released_now_.. (some pressed_now must not
+    // be overwritten by released_now)
+
+    ctx.buttons_action[iof_button] = button_action;
+
+    debug_print ("\nBUTTON [%u]=%u\n", iof_button, button_action);
+
+    const bool pressed_now      = (button_action == BUTTON_ACTION_PRESSED);          // 1
+    const bool pressed_for_long = (button_action == BUTTON_ACTION_PRESSED_FOR_LONG); // 2
+    const bool released_now     = (button_action == BUTTON_ACTION_RELEASED);         // 3 Not after BUTTON_ACTION_PRESSED_FOR_LONG
+
+    const bool pressed_right = (ctx.buttons_action[IOF_BUTTON_RIGHT] == BUTTON_ACTION_PRESSED);
+    const bool pressed_left  = (ctx.buttons_action[IOF_BUTTON_LEFT]  == BUTTON_ACTION_PRESSED);
+    const bool long_right    = (ctx.buttons_action[IOF_BUTTON_RIGHT] == BUTTON_ACTION_PRESSED_FOR_LONG);
+    const bool long_left     = (ctx.buttons_action[IOF_BUTTON_LEFT]  == BUTTON_ACTION_PRESSED_FOR_LONG);
+
+    if (pressed_now) {
+        unsigned iof_LED;
+
+        switch (iof_button) {
+            case IOF_BUTTON_LEFT: {
+
+                iof_LED = IOF_LEFT_YELLOW_LED;
+                button_taken_left = true;
+
+            } break;
+
+            case IOF_BUTTON_CENTER: {
+                // No code
+                // IOF_BUTTON_CENTER handled at released_now, not pressed_now so that it's not taken before pressed_for_long
+            } break;
+
+            case IOF_BUTTON_RIGHT: {
+
+                iof_LED = IOF_RIGHT_RED_LED;
+                button_taken_right = true;
+
+            } break;
+
+            default: {} break; // won't happen, but no need to crash
+        } // Outer switch
+
+        if (button_taken_left or button_taken_right) {
+
+            if (ctx.buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) { // double button action
+
+                beep (outP_beeper_high, 0, 100);
+                ctx.a_side_button_pressed_while_center = true;
+
+                if (iof_LED == IOF_RIGHT_RED_LED) {
+                    ctx.params[IOF_LEFT_YELLOW_LED].period_ms = ctx.params[IOF_RIGHT_RED_LED].period_ms; // set the other
+                } else if (iof_LED == IOF_LEFT_YELLOW_LED) {
+                    ctx.params[IOF_RIGHT_RED_LED].period_ms = ctx.params[IOF_LEFT_YELLOW_LED].period_ms; // set the other
+                } else {}
+
+                write_LEDs_intensity_and_period = true;
+
+            } else { // Standard
+                if (ctx.states_LED_views.state_LED_views == state_all_LEDs_stable_intensity) {
+
+                    // No code, no handling of these buttons in this state here. However, the fact that they are pressed
+                    // is tested on (later).
+                    // Therefore no write_LEDs_intensity_and_period here (don't need to first write the old value here, then the new)
+
+                } else { // not state_all_LEDs_stable_intensity
+                    beep (outP_beeper_high, 0, 100);
+
+                    unsigned iof_period_ms = ctx.params[iof_LED].iof_period_ms_list;
+
+                    iof_period_ms = (iof_period_ms + 1) % PERIOD_MS_LIST_LEN;
+
+                    if (iof_period_ms == (PERIOD_MS_LIST_LEN - 1)) {
+                        beep (outP_beeper_high, 50, 50); // Extra beep at end of list
+                    }
+
+                    ctx.params[iof_LED].period_ms = ctx.period_ms_list[iof_period_ms];
+                    ctx.params[iof_LED].iof_period_ms_list = iof_period_ms;
+
+                    write_LEDs_intensity_and_period = true;
+                }
+            }
+        } else {} // not button_left_or_right_taken
+
+    } else if (released_now) {
+        switch (iof_button) {
+            case IOF_BUTTON_LEFT: {
+                button_taken_left = true;
+            } break;
+
+            case IOF_BUTTON_CENTER: {
+                if (ctx.a_side_button_pressed_while_center) {
+                    ctx.a_side_button_pressed_while_center = false;
+                } else {
+
+                    beep (outP_beeper_high, 0, 100);
+                    write_LEDs_intensity_and_period = true;
+
+                    if (ctx.LED_phase == OUT_OF_PHASE) {
+                        const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_FULL; // This and..
+                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                            ctx.params[ix].start_LED_at   = start_LED_at_now[ix];
+                            ctx.params[ix].transition_pwm = slide_transition_pwm; // LEDs out of phase, and sliding PWM: ok combination
+                        }
+                        ctx.LED_phase = IN_PHASE;
+                    } else if (ctx.LED_phase == IN_PHASE) {
+                        const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_DARK; // .. this are "180 degrees" out of phase
+                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                            ctx.params[ix].start_LED_at   = start_LED_at_now[ix];
+                            ctx.params[ix].transition_pwm = lock_transition_pwm; // LEDs in phase and locked PWM: also ok combination
+                        }
+                        ctx.LED_phase = OUT_OF_PHASE;
+                    } else {}
+                }
+            } break;
+
+            case IOF_BUTTON_RIGHT: {
+                button_taken_right = true;
+            } break;
+
+            default: {} break; // won't happen, but no need to crash
+        } // switch
+
+        if (button_taken_left or button_taken_right) {
+            if (ctx.states_LED_views.state_LED_views == state_all_LEDs_stable_intensity) {
+
+                if (button_taken_left and ctx.states_LED_views.inhibit_next_button_released_now_left) {
+                    ctx.states_LED_views.inhibit_next_button_released_now_left = false;
+                } else if (button_taken_right and ctx.states_LED_views.inhibit_next_button_released_now_right) {
+                    ctx.states_LED_views.inhibit_next_button_released_now_right = false;
+                } else {
+                    beep (outP_beeper_high, 0, 50);
+
+                    ctx.states_LED_views.inhibit_next_button_released_now_left  = false;
+                    ctx.states_LED_views.inhibit_next_button_released_now_right = false;
+
+                    const unsigned steps_10_percent = STABLE_INTENSITY_STEPS_DEFAULT/10;
+                    const unsigned steps_01_percent = STABLE_INTENSITY_STEPS_DEFAULT/100;
+
+                    bool   do_steps_0001 = false;
+                    signed inc_dec_by;
+
+                    if (button_taken_left) { // if steady light LEDs less
+                        if (ctx.states_LED_views.stable_intensity_steps_1000 <= steps_01_percent) {
+                            if (pressed_right or long_right) {
+                                inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/1000);
+                                // [10,9,8,7,6,5,4,3,2,1,0]
+                                do_steps_0001 = true;
+                                ctx.states_LED_views.inhibit_next_button_released_now_right = true;
+                            } else {
+                                // '<=' in test gives [1000..200,100,90,80,70,60,50,40,30,20,10,0]
+                                inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/100);
+                            }
+                        } else if (ctx.states_LED_views.stable_intensity_steps_1000 <= steps_10_percent) {
+                            // '<=' in test gives [1000..200,100,90,80,70,60,50,40,30,20,10,0]
+                            inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/100);
+                        } else {
+                            inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/10);
+                        }
+                    } else if (button_taken_right) { // if steady light LEDs more
+                        if (ctx.states_LED_views.stable_intensity_steps_1000 <= steps_01_percent) {
+                            if (pressed_left or long_left) {
+                                inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/1000);
+                                // [0,1,2,3,4,5,6,7,8,9,10]
+                                do_steps_0001 = true;
+                                ctx.states_LED_views.inhibit_next_button_released_now_left = true;
+                            } else {
+                                // '<' in test gives [0,10,20,30,40,50,60,70,80,90,100,200..1000]
+                                inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/100);
+                            }
+                        } else if (ctx.states_LED_views.stable_intensity_steps_1000 < steps_10_percent) {
+                            // '<' in test gives [0,10,20,30,40,50,60,70,80,90,100,200..1000]
+                            inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/100);
+                        } else {
+                            inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/10);
+                        }
+                    } else {
+                        inc_dec_by = 0;
+                    }
+
+                    const bool inc_dec_by_changed_sgn = (sgn(ctx.states_LED_views.state_all_LEDs_stable_intensity_inc_dec_by) != sgn(inc_dec_by));
+                    const bool halt_right             = button_taken_left  and (pressed_right or long_right);
+                    const bool halt_left              = button_taken_right and (pressed_left  or long_left);
+                    const bool halt_change            = (halt_right != ctx.states_LED_views.halt_right) or (halt_left != ctx.states_LED_views.halt_left);
+
+                    ctx.states_LED_views.state_all_LEDs_stable_intensity_inc_dec_by = inc_dec_by; // Would not have been allowed in occam! (since there is a const derived from it in scope)
+
+                    if (inc_dec_by_changed_sgn or halt_change) { // First this..
+                        // Set old value into all in case inhibit is used, because then we would not want the halted value
+                        // to to get an increment as a side effect from the first inhibit. Usually this will be overwritten by new value.
+                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                            ctx.params[ix].max_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
+                            ctx.params[ix].min_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
+                        }
+                    } else {}
+
+                    if (not do_steps_0001) {
+                        //  Clean-up after single-values like 45 -> 40. 101 -> 100 etc.
+                        ctx.states_LED_views.stable_intensity_steps_1000 = (ctx.states_LED_views.stable_intensity_steps_1000 / 10) * 10;
+                    } else {}
+
+                    ctx.states_LED_views.stable_intensity_steps_1000 = // ..then this
+                            in_range_unsigned_inc_dec (ctx.states_LED_views.stable_intensity_steps_1000, 0, STABLE_INTENSITY_STEPS_DEFAULT, inc_dec_by);
+
+                    if (inc_dec_by_changed_sgn) {
+                        beep (outP_beeper_high, 50, 50);
+                    } else if (ctx.states_LED_views.stable_intensity_steps_1000 == 0) {
+                        beep (outP_beeper_high, 200, 250);
+                    } else if (ctx.states_LED_views.stable_intensity_steps_1000 == steps_01_percent) {
+                        beep (outP_beeper_high, 50, 150);
+                    } else if (ctx.states_LED_views.stable_intensity_steps_1000 == steps_10_percent) {
+                        beep (outP_beeper_high, 50, 200);
+                    } else if (ctx.states_LED_views.stable_intensity_steps_1000 == STABLE_INTENSITY_STEPS_DEFAULT) {
+                        beep (outP_beeper_high, 200, 250);
+                    } else if (do_steps_0001) {
+                        beep (outP_beeper_high, 100, 50);
+                    } else {}
+
+                    // Now the other button may be used to halt that side's increment or decrement
+                    //
+                    if (do_steps_0001) {
+                        // Set both LEDS when either left or right button is pressed
+                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                            ctx.params[ix].max_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
+                            ctx.params[ix].min_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
+                        }
+                    } else if (halt_right) {
+                        // Only set left LED when right button is held for inhibit
+                        ctx.params[IOF_LEFT_YELLOW_LED].max_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
+                        ctx.params[IOF_LEFT_YELLOW_LED].min_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
+
+                        ctx.states_LED_views.inhibit_next_button_released_now_right = true;
+                        ctx.states_LED_views.halt_right = true;
+                        beep (outP_beeper_high, 50, 25);
+                    } else if (halt_left) {
+                        // Only set right LED when left button is held for inhibit
+                        ctx.params[IOF_RIGHT_RED_LED].max_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
+                        ctx.params[IOF_RIGHT_RED_LED].min_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
+
+                        ctx.states_LED_views.inhibit_next_button_released_now_left = true;
+                        ctx.states_LED_views.halt_left = true;
+                        beep (outP_beeper_high, 50, 25);
+                    } else { // same as do_steps_0001
+                        // Set both LEDS when either left or right button is pressed
+                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                            ctx.params[ix].max_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
+                            ctx.params[ix].min_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
+                        }
+                    }
+
+                    write_LEDs_intensity_and_period = true;
+                }
+
+                // OBSERVE THAT LEDs will BLINK "RANDOMLY" UNTIL SETTLED if DEBUG_PRINT_GLOBAL_APP == 1
+            } else {
+                // No code. No handling of these buttons if not state_all_LEDs_stable_intensity
+            }
+        } else {
+           // No code. No handling of IOF_BUTTON_CENTER
+        }
+
+    } else if (pressed_for_long) {
+
+        // since released_now will never happen:
+        ctx.states_LED_views.inhibit_next_button_released_now_left  = false;
+        ctx.states_LED_views.inhibit_next_button_released_now_right = false;
+
+        switch (iof_button) {
+
+            case IOF_BUTTON_LEFT: {
+                // no code, as long_left catches it
+            } break;
+
+            case IOF_BUTTON_CENTER: { // IOF_RIGHT_RED_LED:
+                beep (outP_beeper_high, 0, 200);
+
+                ctx.states_LED_views.state_LED_views = (ctx.states_LED_views.state_LED_views + 1) % NUM_RED_LED_STATES;
+
+                // No extra beep for 0 or the last, but then 1, 2 .. extra beeps
+                if (ctx.states_LED_views.state_LED_views < (NUM_RED_LED_STATES-1)) {
+                    for (unsigned ix=0; ix < ctx.states_LED_views.state_LED_views; ix++) {
+                        beep (outP_beeper_high, 100, 50);
+                    }
+                }
+
+                debug_print ("state_LED_views %u (%u)\n", ctx.states_LED_views.state_LED_views, NUM_RED_LED_STATES);
+
+                switch (ctx.states_LED_views.state_LED_views) {
+                    case state_red_LED_default: {
+                        beep (outP_beeper_high, 50, 100);
+
+                        set_params_to_default (ctx.params);
+                        set_states_LED_views_to_default (ctx.params, ctx.states_LED_views, ctx.synch_all);
+                    } break;
+
+                    case state_all_LEDs_stable_intensity: {
+
+                        ctx.synch_all = DEFAULT_SYNCH; // Set to all at write_LEDs_intensity_and_period
+
+                        ctx.states_LED_views.inhibit_next_button_released_now_left  = false;
+                        ctx.states_LED_views.inhibit_next_button_released_now_right = false;
+
+                        ctx.states_LED_views.stable_intensity_steps_1000 = STABLE_INTENSITY_STEPS_DEFAULT;
+
+                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                            ctx.params[ix].period_ms       = DEFAULT_SOFTBLINK_PERIOD_MS; // Would not matter since it's stable anyhow
+                            ctx.params[ix].intensity_steps = STABLE_INTENSITY_STEPS_DEFAULT;
+                            ctx.params[ix].max_intensity   = STABLE_INTENSITY_STEPS_DEFAULT;
+                            ctx.params[ix].min_intensity   = STABLE_INTENSITY_STEPS_DEFAULT;
+                        }
+
+                    } break;
+
+                    // #pragma fallthrough (for xTIMEcomposer 14.3.3)
+                    case state_red_LED_steps_0012: {
+                        // Clean-up after state_all_LEDs_stable_intensity:
+                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                            ctx.params[ix].min_intensity   = DEFAULT_DARK_INTENSITY;
+                            ctx.params[ix].max_intensity   = DEFAULT_FULL_INTENSITY;
+                            ctx.params[ix].intensity_steps = DEFAULT_INTENSITY_STEPS;
+                        }
+
+                        // The effect of changing intensity_steps is best seen at slow periods:
+                        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+                            ctx.params[ix].period_ms = SOFTBLINK_PERIOD_MAX_MS; // PWM=008
+                        }
+                    } [[fallthrough]];
+                    case state_red_LED_steps_0100:
+                    case state_red_LED_steps_0256: {
+                        ctx.params[IOF_RIGHT_RED_LED].intensity_steps               = ctx.intensity_steps_list_short[ctx.states_LED_views.iOf_intensity_steps_list_red_LED];
+                        ctx.states_LED_views.iOf_intensity_steps_list_red_LED = (ctx.states_LED_views.iOf_intensity_steps_list_red_LED + 1) % NUM_INTENSITY_STEPS_SHORT; // For next time
+                    } break;
+
+                    case state_red_LED_half_range: {
+                        ctx.params[IOF_RIGHT_RED_LED].min_max_intensity_offset_divisor = OFFSET_DIVISOR_4;
+                    } break;
+
+                    case state_all_LEDs_synched: {
+                        ctx.params[IOF_RIGHT_RED_LED].min_max_intensity_offset_divisor = OFFSET_DIVISOR_INFIN;
+                        beep (outP_beeper_high, 100, 300); // Loong extra beep for the last
+                        ctx.synch_all = synch_active;
+                    } break;
+
+                    default : {} break; // Never here, no need to crash
+                } // switch
+
+                write_LEDs_intensity_and_period = true;
+
+            } break;
+
+            case IOF_BUTTON_RIGHT: {
+                // no code, as long_right catches it
+            } break;
+
+            default: {} break; // won't happen, but no need to crash
+        }; // switch
+
+        if (long_left and long_right) {
+            // Both pressed for long
+
+            beep (outP_beeper_high,  0, 200);
+            beep (outP_beeper_high, 50, 300);
+
+            set_params_to_default (ctx.params);
+            set_states_LED_views_to_default (ctx.params, ctx.states_LED_views, ctx.synch_all);
+            write_LEDs_intensity_and_period = true;
+        } else {
+            // Code. A single one of these may be pressed for long and that would be ok
+        }
+
+    } else {
+       // No code, no pressed action
+    } // end of pressed_now, released_now and pressed_for_long list. I wish I had a folding editor!
+
+    if (write_LEDs_intensity_and_period) {
+        // All tasks must be set to the same synch pattern, equal to avoid deadlock:
+        for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
+            ctx.params[ix].synch = ctx.synch_all;
+        }
+        write_to_pwm_softblinker (if_softblinker, ctx.params);
+    } else {}
+}
+
 [[combinable]]
 void softblinker_user_interface_task (
         server button_if      i_buttons_in[BUTTONS_NUM_CLIENTS],
@@ -236,409 +645,9 @@ void softblinker_user_interface_task (
             //
             case i_buttons_in[int iof_button].button (const button_action_t button_action) : {
 
-                bool write_LEDs_intensity_and_period = false;
-                bool button_taken_left               = false;
-                bool button_taken_right              = false;
+                handle_button (iof_button, button_action, ctx, if_softblinker, outP_beeper_high);
 
-                // 2May2021: (in _Softblinker_user_interface.xc)
-                // ---------------------------------------------------------------------------------------------------------------------------------------
-                // BUTTONS          | LEFT                                | CENTER                                 | RIGHT
-                // ---------------------------------------------------------------------------------------------------------------------------------------
-                // pressed_now      | if also CENTER set red/right period | ...                                    | if also CENTER set yellow/left period
-                //                  | else next yellow/left period        | ...                                    | else next red/right period
-                // -----------------------------------------------------------------------------------------------------------------------------
-                // released_now     | if steady light LEDs less but       | if LEFT or RIGHT pressed_now handle it | if steady light LEDs more but
-                //                  | if also RIGHT either halt the       | else swap phase and start black/full   | if also RIGHT either halt the
-                //                  | LED or below 1% down                |                                        | LED or below 1% down
-                // --------------------------------------------------------------------------------------------------------------------------------------
-                // pressed_for_long |                                     | Increase state_LED_views_e             | ...
-                // ======================================================================================================================================
-                // pressed_for_long | LEFT       | if LEFT and RIGHT: clear to init state, but arbitrary starts    | RIGHT
-                // --------------------------------------------------------------------------------------------------------------------------------------
-                // Beeping as some pattern to distinguish button actions. If no beeping then that press has been disabled by previous press to
-                // avoid some present state becoming changed when not wanted. See inhibit_next_button_released_now_.. (some pressed_now must not
-                // be overwritten by released_now)
-
-                ctx.buttons_action[iof_button] = button_action;
-
-                debug_print ("\nBUTTON [%u]=%u\n", iof_button, button_action);
-
-                const bool pressed_now      = (button_action == BUTTON_ACTION_PRESSED);          // 1
-                const bool pressed_for_long = (button_action == BUTTON_ACTION_PRESSED_FOR_LONG); // 2
-                const bool released_now     = (button_action == BUTTON_ACTION_RELEASED);         // 3 Not after BUTTON_ACTION_PRESSED_FOR_LONG
-
-                const bool pressed_right = (ctx.buttons_action[IOF_BUTTON_RIGHT] == BUTTON_ACTION_PRESSED);
-                const bool pressed_left  = (ctx.buttons_action[IOF_BUTTON_LEFT]  == BUTTON_ACTION_PRESSED);
-                const bool long_right    = (ctx.buttons_action[IOF_BUTTON_RIGHT] == BUTTON_ACTION_PRESSED_FOR_LONG);
-                const bool long_left     = (ctx.buttons_action[IOF_BUTTON_LEFT]  == BUTTON_ACTION_PRESSED_FOR_LONG);
-
-                if (pressed_now) {
-                    unsigned iof_LED;
-
-                    switch (iof_button) {
-                        case IOF_BUTTON_LEFT: {
-
-                            iof_LED = IOF_LEFT_YELLOW_LED;
-                            button_taken_left = true;
-
-                        } break;
-
-                        case IOF_BUTTON_CENTER: {
-                            // No code
-                            // IOF_BUTTON_CENTER handled at released_now, not pressed_now so that it's not taken before pressed_for_long
-                        } break;
-
-                        case IOF_BUTTON_RIGHT: {
-
-                            iof_LED = IOF_RIGHT_RED_LED;
-                            button_taken_right = true;
-
-                        } break;
-
-                        default: {} break; // won't happen, but no need to crash
-                    } // Outer switch
-
-                    if (button_taken_left or button_taken_right) {
-
-                        if (ctx.buttons_action[IOF_BUTTON_CENTER] == BUTTON_ACTION_PRESSED) { // double button action
-
-                            beep (outP_beeper_high, 0, 100);
-                            ctx.a_side_button_pressed_while_center = true;
-
-                            if (iof_LED == IOF_RIGHT_RED_LED) {
-                                ctx.params[IOF_LEFT_YELLOW_LED].period_ms = ctx.params[IOF_RIGHT_RED_LED].period_ms; // set the other
-                            } else if (iof_LED == IOF_LEFT_YELLOW_LED) {
-                                ctx.params[IOF_RIGHT_RED_LED].period_ms = ctx.params[IOF_LEFT_YELLOW_LED].period_ms; // set the other
-                            } else {}
-
-                            write_LEDs_intensity_and_period = true;
-
-                        } else { // Standard
-                            if (ctx.states_LED_views.state_LED_views == state_all_LEDs_stable_intensity) {
-
-                                // No code, no handling of these buttons in this state here. However, the fact that they are pressed
-                                // is tested on (later).
-                                // Therefore no write_LEDs_intensity_and_period here (don't need to first write the old value here, then the new)
-
-                            } else { // not state_all_LEDs_stable_intensity
-                                beep (outP_beeper_high, 0, 100);
-
-                                unsigned iof_period_ms = ctx.params[iof_LED].iof_period_ms_list;
-
-                                iof_period_ms = (iof_period_ms + 1) % PERIOD_MS_LIST_LEN;
-
-                                if (iof_period_ms == (PERIOD_MS_LIST_LEN - 1)) {
-                                    beep (outP_beeper_high, 50, 50); // Extra beep at end of list
-                                }
-
-                                ctx.params[iof_LED].period_ms = ctx.period_ms_list[iof_period_ms];
-                                ctx.params[iof_LED].iof_period_ms_list = iof_period_ms;
-
-                                write_LEDs_intensity_and_period = true;
-                            }
-                        }
-                    } else {} // not button_left_or_right_taken
-
-                } else if (released_now) {
-                    switch (iof_button) {
-                        case IOF_BUTTON_LEFT: {
-                            button_taken_left = true;
-                        } break;
-
-                        case IOF_BUTTON_CENTER: {
-                            if (ctx.a_side_button_pressed_while_center) {
-                                ctx.a_side_button_pressed_while_center = false;
-                            } else {
-
-                                beep (outP_beeper_high, 0, 100);
-                                write_LEDs_intensity_and_period = true;
-
-                                if (ctx.LED_phase == OUT_OF_PHASE) {
-                                    const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_FULL; // This and..
-                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                        ctx.params[ix].start_LED_at   = start_LED_at_now[ix];
-                                        ctx.params[ix].transition_pwm = slide_transition_pwm; // LEDs out of phase, and sliding PWM: ok combination
-                                    }
-                                    ctx.LED_phase = IN_PHASE;
-                                } else if (ctx.LED_phase == IN_PHASE) {
-                                    const start_LED_at_e start_LED_at_now [CONFIG_NUM_SOFTBLIKER_LEDS] = LED_START_DARK_DARK; // .. this are "180 degrees" out of phase
-                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                        ctx.params[ix].start_LED_at   = start_LED_at_now[ix];
-                                        ctx.params[ix].transition_pwm = lock_transition_pwm; // LEDs in phase and locked PWM: also ok combination
-                                    }
-                                    ctx.LED_phase = OUT_OF_PHASE;
-                                } else {}
-                            }
-                        } break;
-
-                        case IOF_BUTTON_RIGHT: {
-                            button_taken_right = true;
-                        } break;
-
-                        default: {} break; // won't happen, but no need to crash
-                    } // switch
-
-                    if (button_taken_left or button_taken_right) {
-                        if (ctx.states_LED_views.state_LED_views == state_all_LEDs_stable_intensity) {
-
-                            if (button_taken_left and ctx.states_LED_views.inhibit_next_button_released_now_left) {
-                                ctx.states_LED_views.inhibit_next_button_released_now_left = false;
-                            } else if (button_taken_right and ctx.states_LED_views.inhibit_next_button_released_now_right) {
-                                ctx.states_LED_views.inhibit_next_button_released_now_right = false;
-                            } else {
-                                beep (outP_beeper_high, 0, 50);
-
-                                ctx.states_LED_views.inhibit_next_button_released_now_left  = false;
-                                ctx.states_LED_views.inhibit_next_button_released_now_right = false;
-
-                                const unsigned steps_10_percent = STABLE_INTENSITY_STEPS_DEFAULT/10;
-                                const unsigned steps_01_percent = STABLE_INTENSITY_STEPS_DEFAULT/100;
-
-                                bool   do_steps_0001 = false;
-                                signed inc_dec_by;
-
-                                if (button_taken_left) { // if steady light LEDs less
-                                    if (ctx.states_LED_views.stable_intensity_steps_1000 <= steps_01_percent) {
-                                        if (pressed_right or long_right) {
-                                            inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/1000);
-                                            // [10,9,8,7,6,5,4,3,2,1,0]
-                                            do_steps_0001 = true;
-                                            ctx.states_LED_views.inhibit_next_button_released_now_right = true;
-                                        } else {
-                                            // '<=' in test gives [1000..200,100,90,80,70,60,50,40,30,20,10,0]
-                                            inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/100);
-                                        }
-                                    } else if (ctx.states_LED_views.stable_intensity_steps_1000 <= steps_10_percent) {
-                                        // '<=' in test gives [1000..200,100,90,80,70,60,50,40,30,20,10,0]
-                                        inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/100);
-                                    } else {
-                                        inc_dec_by = -(STABLE_INTENSITY_STEPS_DEFAULT/10);
-                                    }
-                                } else if (button_taken_right) { // if steady light LEDs more
-                                    if (ctx.states_LED_views.stable_intensity_steps_1000 <= steps_01_percent) {
-                                        if (pressed_left or long_left) {
-                                            inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/1000);
-                                            // [0,1,2,3,4,5,6,7,8,9,10]
-                                            do_steps_0001 = true;
-                                            ctx.states_LED_views.inhibit_next_button_released_now_left = true;
-                                        } else {
-                                            // '<' in test gives [0,10,20,30,40,50,60,70,80,90,100,200..1000]
-                                            inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/100);
-                                        }
-                                    } else if (ctx.states_LED_views.stable_intensity_steps_1000 < steps_10_percent) {
-                                        // '<' in test gives [0,10,20,30,40,50,60,70,80,90,100,200..1000]
-                                        inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/100);
-                                    } else {
-                                        inc_dec_by = (STABLE_INTENSITY_STEPS_DEFAULT/10);
-                                    }
-                                } else {
-                                    inc_dec_by = 0;
-                                }
-
-                                const bool inc_dec_by_changed_sgn = (sgn(ctx.states_LED_views.state_all_LEDs_stable_intensity_inc_dec_by) != sgn(inc_dec_by));
-                                const bool halt_right             = button_taken_left  and (pressed_right or long_right);
-                                const bool halt_left              = button_taken_right and (pressed_left  or long_left);
-                                const bool halt_change            = (halt_right != ctx.states_LED_views.halt_right) or (halt_left != ctx.states_LED_views.halt_left);
-
-                                ctx.states_LED_views.state_all_LEDs_stable_intensity_inc_dec_by = inc_dec_by; // Would not have been allowed in occam! (since there is a const derived from it in scope)
-
-                                if (inc_dec_by_changed_sgn or halt_change) { // First this..
-                                    // Set old value into all in case inhibit is used, because then we would not want the halted value
-                                    // to to get an increment as a side effect from the first inhibit. Usually this will be overwritten by new value.
-                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                        ctx.params[ix].max_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
-                                        ctx.params[ix].min_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
-                                    }
-                                } else {}
-
-                                if (not do_steps_0001) {
-                                    //  Clean-up after single-values like 45 -> 40. 101 -> 100 etc.
-                                    ctx.states_LED_views.stable_intensity_steps_1000 = (ctx.states_LED_views.stable_intensity_steps_1000 / 10) * 10;
-                                } else {}
-
-                                ctx.states_LED_views.stable_intensity_steps_1000 = // ..then this
-                                        in_range_unsigned_inc_dec (ctx.states_LED_views.stable_intensity_steps_1000, 0, STABLE_INTENSITY_STEPS_DEFAULT, inc_dec_by);
-
-                                if (inc_dec_by_changed_sgn) {
-                                    beep (outP_beeper_high, 50, 50);
-                                } else if (ctx.states_LED_views.stable_intensity_steps_1000 == 0) {
-                                    beep (outP_beeper_high, 200, 250);
-                                } else if (ctx.states_LED_views.stable_intensity_steps_1000 == steps_01_percent) {
-                                    beep (outP_beeper_high, 50, 150);
-                                } else if (ctx.states_LED_views.stable_intensity_steps_1000 == steps_10_percent) {
-                                    beep (outP_beeper_high, 50, 200);
-                                } else if (ctx.states_LED_views.stable_intensity_steps_1000 == STABLE_INTENSITY_STEPS_DEFAULT) {
-                                    beep (outP_beeper_high, 200, 250);
-                                } else if (do_steps_0001) {
-                                    beep (outP_beeper_high, 100, 50);
-                                } else {}
-
-                                // Now the other button may be used to halt that side's increment or decrement
-                                //
-                                if (do_steps_0001) {
-                                    // Set both LEDS when either left or right button is pressed
-                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                        ctx.params[ix].max_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
-                                        ctx.params[ix].min_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
-                                    }
-                                } else if (halt_right) {
-                                    // Only set left LED when right button is held for inhibit
-                                    ctx.params[IOF_LEFT_YELLOW_LED].max_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
-                                    ctx.params[IOF_LEFT_YELLOW_LED].min_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
-
-                                    ctx.states_LED_views.inhibit_next_button_released_now_right = true;
-                                    ctx.states_LED_views.halt_right = true;
-                                    beep (outP_beeper_high, 50, 25);
-                                } else if (halt_left) {
-                                    // Only set right LED when left button is held for inhibit
-                                    ctx.params[IOF_RIGHT_RED_LED].max_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
-                                    ctx.params[IOF_RIGHT_RED_LED].min_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
-
-                                    ctx.states_LED_views.inhibit_next_button_released_now_left = true;
-                                    ctx.states_LED_views.halt_left = true;
-                                    beep (outP_beeper_high, 50, 25);
-                                } else { // same as do_steps_0001
-                                    // Set both LEDS when either left or right button is pressed
-                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                        ctx.params[ix].max_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
-                                        ctx.params[ix].min_intensity = ctx.states_LED_views.stable_intensity_steps_1000;
-                                    }
-                                }
-
-                                write_LEDs_intensity_and_period = true;
-                            }
-
-                            // OBSERVE THAT LEDs will BLINK "RANDOMLY" UNTIL SETTLED if DEBUG_PRINT_GLOBAL_APP == 1
-                        } else {
-                            // No code. No handling of these buttons if not state_all_LEDs_stable_intensity
-                        }
-                    } else {
-                       // No code. No handling of IOF_BUTTON_CENTER
-                    }
-
-                } else if (pressed_for_long) {
-
-                    // since released_now will never happen:
-                    ctx.states_LED_views.inhibit_next_button_released_now_left  = false;
-                    ctx.states_LED_views.inhibit_next_button_released_now_right = false;
-
-                    switch (iof_button) {
-
-                        case IOF_BUTTON_LEFT: {
-                            // no code, as long_left catches it
-                        } break;
-
-                        case IOF_BUTTON_CENTER: { // IOF_RIGHT_RED_LED:
-                            beep (outP_beeper_high, 0, 200);
-
-                            ctx.states_LED_views.state_LED_views = (ctx.states_LED_views.state_LED_views + 1) % NUM_RED_LED_STATES;
-
-                            // No extra beep for 0 or the last, but then 1, 2 .. extra beeps
-                            if (ctx.states_LED_views.state_LED_views < (NUM_RED_LED_STATES-1)) {
-                                for (unsigned ix=0; ix < ctx.states_LED_views.state_LED_views; ix++) {
-                                    beep (outP_beeper_high, 100, 50);
-                                }
-                            }
-
-                            debug_print ("state_LED_views %u (%u)\n", ctx.states_LED_views.state_LED_views, NUM_RED_LED_STATES);
-
-                            switch (ctx.states_LED_views.state_LED_views) {
-                                case state_red_LED_default: {
-                                    beep (outP_beeper_high, 50, 100);
-
-                                    set_params_to_default (ctx.params);
-                                    set_states_LED_views_to_default (ctx.params, ctx.states_LED_views, ctx.synch_all);
-                                } break;
-
-                                case state_all_LEDs_stable_intensity: {
-
-                                    ctx.synch_all = DEFAULT_SYNCH; // Set to all at write_LEDs_intensity_and_period
-
-                                    ctx.states_LED_views.inhibit_next_button_released_now_left  = false;
-                                    ctx.states_LED_views.inhibit_next_button_released_now_right = false;
-
-                                    ctx.states_LED_views.stable_intensity_steps_1000 = STABLE_INTENSITY_STEPS_DEFAULT;
-
-                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                        ctx.params[ix].period_ms       = DEFAULT_SOFTBLINK_PERIOD_MS; // Would not matter since it's stable anyhow
-                                        ctx.params[ix].intensity_steps = STABLE_INTENSITY_STEPS_DEFAULT;
-                                        ctx.params[ix].max_intensity   = STABLE_INTENSITY_STEPS_DEFAULT;
-                                        ctx.params[ix].min_intensity   = STABLE_INTENSITY_STEPS_DEFAULT;
-                                    }
-
-                                } break;
-
-                                // #pragma fallthrough (for xTIMEcomposer 14.3.3)
-                                case state_red_LED_steps_0012: {
-                                    // Clean-up after state_all_LEDs_stable_intensity:
-                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                        ctx.params[ix].min_intensity   = DEFAULT_DARK_INTENSITY;
-                                        ctx.params[ix].max_intensity   = DEFAULT_FULL_INTENSITY;
-                                        ctx.params[ix].intensity_steps = DEFAULT_INTENSITY_STEPS;
-                                    }
-
-                                    // The effect of changing intensity_steps is best seen at slow periods:
-                                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                                        ctx.params[ix].period_ms = SOFTBLINK_PERIOD_MAX_MS; // PWM=008
-                                    }
-                                } [[fallthrough]];
-                                case state_red_LED_steps_0100:
-                                case state_red_LED_steps_0256: {
-                                    ctx.params[IOF_RIGHT_RED_LED].intensity_steps               = ctx.intensity_steps_list_short[ctx.states_LED_views.iOf_intensity_steps_list_red_LED];
-                                    ctx.states_LED_views.iOf_intensity_steps_list_red_LED = (ctx.states_LED_views.iOf_intensity_steps_list_red_LED + 1) % NUM_INTENSITY_STEPS_SHORT; // For next time
-                                } break;
-
-                                case state_red_LED_half_range: {
-                                    ctx.params[IOF_RIGHT_RED_LED].min_max_intensity_offset_divisor = OFFSET_DIVISOR_4;
-                                } break;
-
-                                case state_all_LEDs_synched: {
-                                    ctx.params[IOF_RIGHT_RED_LED].min_max_intensity_offset_divisor = OFFSET_DIVISOR_INFIN;
-                                    beep (outP_beeper_high, 100, 300); // Loong extra beep for the last
-                                    ctx.synch_all = synch_active;
-                                } break;
-
-                                default : {} break; // Never here, no need to crash
-                            } // switch
-
-                            write_LEDs_intensity_and_period = true;
-
-                        } break;
-
-                        case IOF_BUTTON_RIGHT: {
-                            // no code, as long_right catches it
-                        } break;
-
-                        default: {} break; // won't happen, but no need to crash
-                    }; // switch
-
-                    if (long_left and long_right) {
-                        // Both pressed for long
-
-                        beep (outP_beeper_high,  0, 200);
-                        beep (outP_beeper_high, 50, 300);
-
-                        set_params_to_default (ctx.params);
-                        set_states_LED_views_to_default (ctx.params, ctx.states_LED_views, ctx.synch_all);
-                        write_LEDs_intensity_and_period = true;
-                    } else {
-                        // Code. A single one of these may be pressed for long and that would be ok
-                    }
-
-                } else {
-                   // No code, no pressed action
-                } // end of pressed_now, released_now and pressed_for_long list. I wish I had a folding editor!
-
-                if (write_LEDs_intensity_and_period) {
-                    // All tasks must be set to the same synch pattern, equal to avoid deadlock:
-                    for (unsigned ix = 0; ix < CONFIG_NUM_SOFTBLIKER_LEDS; ix++) {
-                        ctx.params[ix].synch = ctx.synch_all;
-                    }
-                    write_to_pwm_softblinker (if_softblinker, ctx.params);
-                } else {}
-
-
-            } break; // select i_buttons_in
+            } break;
         }
     }
 }
