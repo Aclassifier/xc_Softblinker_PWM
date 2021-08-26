@@ -31,6 +31,10 @@
 #define DEBUG_PRINT_TEST 1
 #define debug_print(fmt, ...) do { if((DEBUG_PRINT_TEST==1) and (DEBUG_PRINT_GLOBAL_APP==1)) printf(fmt, __VA_ARGS__); } while (0)
 
+// SIMULATE BUTTONS AT POWER UP
+//
+#define DO_BUTTONS_POWER_UP_SIMULATE_ACTIONS 1
+
 #define NUM_TIMEOUTS_PER_SECOND 2
 
 #if (CONFIG_NUM_SOFTBLIKER_LEDS==2)
@@ -595,10 +599,9 @@ void handle_button (const int iof_button,
     } else {}
 }
 
-// SIMULATE BUTTONS AT POWER UP INTO
+// SIMULATE BUTTONS AT POWER UP
 
-#define DO_BUTTONS_POWER_UP_SIMULATE_ACTIONS  true
-#define NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS 12
+#define NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS 16
 //
 const int iof_buttons [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
 {
@@ -608,18 +611,22 @@ const int iof_buttons [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
     IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
     IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
     IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
+    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
+    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
     IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT
 };
 
 const button_action_t button_actions [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
 {
-                                                            // state_red_LED_default
-    BUTTON_ACTION_PRESSED_FOR_LONG, BUTTON_ACTION_RELEASED, // state_all_LEDs_stable_intensity
-    BUTTON_ACTION_PRESSED,          BUTTON_ACTION_RELEASED, // 90% light
-    BUTTON_ACTION_PRESSED,          BUTTON_ACTION_RELEASED, // 80% light
-    BUTTON_ACTION_PRESSED,          BUTTON_ACTION_RELEASED, // 70% light
-    BUTTON_ACTION_PRESSED,          BUTTON_ACTION_RELEASED, // 60% light
-    BUTTON_ACTION_PRESSED,          BUTTON_ACTION_RELEASED  // 50% light
+                                                          // state_red_LED_default
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_PRESSED_FOR_LONG,// state_all_LEDs_stable_intensity
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 90% light
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 80% light
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 70% light
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 60% light
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 50% light
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 40% light
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED         // 30% light
 };
 
 [[combinable]]
@@ -635,10 +642,13 @@ void softblinker_user_interface_task (
     ui_context_t ctx; // PWM=011
     int          iof_buttons_power_up_simulate;
 
-    #if DO_BUTTONS_POWER_UP_SIMULATE_ACTIONS
+    #if (DO_BUTTONS_POWER_UP_SIMULATE_ACTIONS == 1)
+        #if (WARNINGS==1)
+            #warning Button simulation at power up
+        #endif
         iof_buttons_power_up_simulate = 0;
     #else
-        #if WARNINGS
+        #if (WARNINGS==1)
             #warning No button simulation at power up
         #endif
         iof_buttons_power_up_simulate = NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS; // skip them
@@ -668,13 +678,15 @@ void softblinker_user_interface_task (
 
     set_states_LED_views_to_default (ctx.params, ctx.states_LED_views, ctx.synch_all);
 
+    tmr :> time_ticks;
+
     while (true) {
         select { // Each case passively waits on an event:
 
             // BUTTON ACTION (REPEAT: BUTTON HELD FOR SOME TIME) AT TIMEOUT
             //
             case (iof_buttons_power_up_simulate < NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS) => tmr when timerafter (time_ticks) :> void : {
-                time_ticks += (XS1_TIMER_HZ/NUM_TIMEOUTS_PER_SECOND);
+                time_ticks += (XS1_TIMER_HZ * 3); // /NUM_TIMEOUTS_PER_SECOND);
 
                 handle_button (
                         iof_buttons   [iof_buttons_power_up_simulate],

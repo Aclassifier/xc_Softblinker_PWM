@@ -12,9 +12,11 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.7.2" // Not used
-#define AUDIOMUX_VERSION_NUM   0072  // Not used either
+#define AUDIOMUX_VERSION_STR "0.7.3" // Not used
+#define AUDIOMUX_VERSION_NUM   0073  // Not used either
 
+// 0073 26Aug2021          Going to 30% then they both become equal, if 2 or 3 secs delay.
+//                         Some matter with synch and setady signals?
 // 0072 26Aug2021          DO_BUTTONS_POWER_UP_SIMULATE_ACTIONS (but only right goes to 50% (as with 0067 etc..))
 // 0071 26Aug2021          Moved all button code into handle_button
 // 0070 26Aug2021 PWM=011  Moved all into ui_context_t ctx;
