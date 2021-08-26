@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.7.1" // Not used
-#define AUDIOMUX_VERSION_NUM   0071  // Not used either
+#define AUDIOMUX_VERSION_STR "0.7.2" // Not used
+#define AUDIOMUX_VERSION_NUM   0072  // Not used either
 
+// 0072 26Aug2021          DO_BUTTONS_POWER_UP_SIMULATE_ACTIONS (but only right goes to 50% (as with 0067 etc..))
 // 0071 26Aug2021          Moved all button code into handle_button
 // 0070 26Aug2021 PWM=011  Moved all into ui_context_t ctx;
 // 0067 etc                Not used, but comitted

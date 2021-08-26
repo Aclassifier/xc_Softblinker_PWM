@@ -20,6 +20,7 @@ typedef interface button_if {
     // Error: Meta information. Error: lower bound could not be calculated (function is recursive?).
     //
     //[[guarded]] void button (const button_action_t button_action); // timerafter-driven
+    //[[guarded]] Failed in /jenkins/RELEASE_14_4/sb/tools_xcc1_c_llvm/FrontEnd/Lowering/lower_combined_pars.cpp, line 183
     void button (const button_action_t button_action); // timerafter-driven
 
 } button_if;
