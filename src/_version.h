@@ -15,8 +15,14 @@
 #define AUDIOMUX_VERSION_STR "0.7.3" // Not used
 #define AUDIOMUX_VERSION_NUM   0073  // Not used either
 
-// 0073 26Aug2021          Going to 30% then they both become equal, if 2 or 3 secs delay.
-//                         Some matter with synch and setady signals?
+// 0073 27Aug2021 PWM=012  One PWM did not obey 30% before after half of timer range = 21 secs (21.47483648)
+//                         Fixed in pwm_for_LED_task in lib_pwm_softblinker. Lurking error!
+//                         When fixed, lib_pwm_softblinker was increased from 0.8.1 to 0.8.2
+//                         warning: Button simulation at power up
+//                             Constraints tile[0]: C:8/6 T:10/6 C:32/11 M:14144 S:1756 C:11244 D:1144
+//                             Constraints tile[1]: C:8/1 T:10/1 C:32/00 M:02952 S:0348 C:02112 D:0492
+//                             No idea why so much less memory needed (no printing). Had to inrease timing requirement from 1.0 to 1.1 us:
+//                             xta: .././my_script.xta:4: warning: route(0)     Pass with 13 unknowns, Num Paths: 20, Slack: 44.0 ns, Required: 1.1 us, Worst: 1.1 us, Min Core Frequency: 480 MHz
 // 0072 26Aug2021          DO_BUTTONS_POWER_UP_SIMULATE_ACTIONS (but only right goes to 50% (as with 0067 etc..))
 // 0071 26Aug2021          Moved all button code into handle_button
 // 0070 26Aug2021 PWM=011  Moved all into ui_context_t ctx;

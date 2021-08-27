@@ -34,8 +34,49 @@
 // SIMULATE BUTTONS AT POWER UP
 //
 #define DO_BUTTONS_POWER_UP_SIMULATE_ACTIONS 1
-
-#define NUM_TIMEOUTS_PER_SECOND 2
+//
+#define NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS 16
+//
+const int iof_buttons [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
+{
+                                          // state_red_LED_default
+    IOF_BUTTON_CENTER, IOF_BUTTON_CENTER, // state_all_LEDs_stable_intensity
+    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
+    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
+    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
+    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
+    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
+    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
+    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT
+};
+//
+const button_action_t button_actions [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
+{
+                                                          // state_red_LED_default
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_PRESSED_FOR_LONG,// state_all_LEDs_stable_intensity
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 90% light
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 80% light
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 70% light
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 60% light
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 50% light
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 40% light
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED         // 30% light
+};
+//
+#define BUTTONS_POWER_UP_SIMULATE_MS 100
+//
+const pre_button_action_delay_ms [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
+{
+    DEFAULT_SOFTBLINK_PERIOD_MS, // 10 secs. Observe one period
+    BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
+    BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
+    BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
+    BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
+    BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
+    BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
+    BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
+    BUTTONS_POWER_UP_SIMULATE_MS
+};
 
 #if (CONFIG_NUM_SOFTBLIKER_LEDS==2)
     #define LED_START_DARK_FULL {dark_LED, full_LED} // of start_LED_at_e with CONFIG_NUM_SOFTBLIKER_LEDS elements
@@ -68,7 +109,7 @@ typedef struct params_t {
 // 2May2021:
 typedef enum {
     state_red_LED_default,           // 0 beeep
-    state_all_LEDs_stable_intensity, // 1 beeep beep .. plus some extra beeps on 0, 10 and 100% intensity ++
+    state_all_LEDs_stable_intensity, // 1 beeep beep .. plus some extra beeps on 0, 10 and 100% intensity ++. PWM=012 stops here at 30%
     state_red_LED_steps_0012,        // 2 beeep beep beep                     steps_0012
     state_red_LED_steps_0100,        // 3 beeep beep beep beep                steps_0100
     state_red_LED_steps_0256,        // 4 beeep beep beep beep beep           steps_0256 (steps_1000 is default)
@@ -599,35 +640,6 @@ void handle_button (const int iof_button,
     } else {}
 }
 
-// SIMULATE BUTTONS AT POWER UP
-
-#define NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS 16
-//
-const int iof_buttons [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
-{
-                                          // state_red_LED_default
-    IOF_BUTTON_CENTER, IOF_BUTTON_CENTER, // state_all_LEDs_stable_intensity
-    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
-    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
-    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
-    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
-    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
-    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
-    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT
-};
-
-const button_action_t button_actions [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
-{
-                                                          // state_red_LED_default
-    BUTTON_ACTION_PRESSED, BUTTON_ACTION_PRESSED_FOR_LONG,// state_all_LEDs_stable_intensity
-    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 90% light
-    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 80% light
-    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 70% light
-    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 60% light
-    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 50% light
-    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 40% light
-    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED         // 30% light
-};
 
 [[combinable]]
 void softblinker_user_interface_task (
@@ -654,6 +666,8 @@ void softblinker_user_interface_task (
         iof_buttons_power_up_simulate = NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS; // skip them
     #endif
 
+    debug_print ("softblinker_user_interface_task sim_cnt=%u\n", iof_buttons_power_up_simulate);
+
     // INIT
     ctx.LED_phase                          = IN_PHASE;
     ctx.a_side_button_pressed_while_center = false;
@@ -679,6 +693,7 @@ void softblinker_user_interface_task (
     set_states_LED_views_to_default (ctx.params, ctx.states_LED_views, ctx.synch_all);
 
     tmr :> time_ticks;
+    time_ticks += (XS1_TIMER_KHZ * pre_button_action_delay_ms[iof_buttons_power_up_simulate]);
 
     while (true) {
         select { // Each case passively waits on an event:
@@ -686,7 +701,6 @@ void softblinker_user_interface_task (
             // BUTTON ACTION (REPEAT: BUTTON HELD FOR SOME TIME) AT TIMEOUT
             //
             case (iof_buttons_power_up_simulate < NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS) => tmr when timerafter (time_ticks) :> void : {
-                time_ticks += (XS1_TIMER_HZ * 3); // /NUM_TIMEOUTS_PER_SECOND);
 
                 handle_button (
                         iof_buttons   [iof_buttons_power_up_simulate],
@@ -694,7 +708,12 @@ void softblinker_user_interface_task (
                         ctx,
                         if_softblinker,
                         outP_beeper_high);
+
                 iof_buttons_power_up_simulate++;
+                if (iof_buttons_power_up_simulate < NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS) {
+                    time_ticks += (XS1_TIMER_KHZ * pre_button_action_delay_ms[iof_buttons_power_up_simulate]);
+                } else {}
+
             } break; // timerafter
 
             // BUTTON PRESSES

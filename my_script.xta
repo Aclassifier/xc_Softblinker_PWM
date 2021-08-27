@@ -1,7 +1,10 @@
 # COMMENT THE BELOW LINES AWAY IF YOU MUST RUN THIS CODE (else no .xe file is built)
 #
 analyze loop start
-set required - 1.0 us
+set required - 1.1 us
+
+# With PWM=012 solved I got this for set required - 1.0 us 
+# xta: .././my_script.xta:4: warning: route(0)     Fail (timing violation) with 13 unknowns, Num Paths: 20, Violation: 56.0 ns, Required: 1.0 us, Worst: 1.1 us, Min Core Frequency: 528 MHz
 
 # warning: route(0)     Fail (missing loop iterations) with 16 unknowns, Num Paths: 64, Slack: 760.0 ns, Required: 1.0 us, Worst: 240.0 ns, Min Core Frequency: 120 MHz
 
