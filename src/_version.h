@@ -12,9 +12,10 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.7.3" // Not used
-#define AUDIOMUX_VERSION_NUM   0073  // Not used either
+#define AUDIOMUX_VERSION_STR "0.7.4" // Not used
+#define AUDIOMUX_VERSION_NUM   0074  // Not used either
 
+// 0074 28Aug2021 PWM=013  Making the 10 secs  first startup interval show left LED at 5 secs and right at 10 secs period_ms
 // 0073 27Aug2021 PWM=012  One PWM did not obey 30% before after half of timer range = 21 secs (21.47483648)
 //                         Fixed in pwm_for_LED_task in lib_pwm_softblinker. Lurking error!
 //                         When fixed, lib_pwm_softblinker was increased from 0.8.1 to 0.8.2

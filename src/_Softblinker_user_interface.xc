@@ -35,12 +35,12 @@
 //
 #define DO_BUTTONS_POWER_UP_SIMULATE_ACTIONS 1
 //
-#define NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS 16
+#define NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS 18
 //
 const int iof_buttons [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
 {
-                                          // state_red_LED_default
-    IOF_BUTTON_CENTER, IOF_BUTTON_CENTER, // state_all_LEDs_stable_intensity
+    IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
+    IOF_BUTTON_CENTER, IOF_BUTTON_CENTER,
     IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
     IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
     IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
@@ -53,6 +53,7 @@ const int iof_buttons [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
 const button_action_t button_actions [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
 {
                                                           // state_red_LED_default
+    BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // Left LED double speed of right LED
     BUTTON_ACTION_PRESSED, BUTTON_ACTION_PRESSED_FOR_LONG,// state_all_LEDs_stable_intensity
     BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 90% light
     BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // 80% light
@@ -67,7 +68,8 @@ const button_action_t button_actions [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
 //
 const pre_button_action_delay_ms [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
 {
-    DEFAULT_SOFTBLINK_PERIOD_MS, // 10 secs. Observe one period
+    0,
+    BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS,   // The longer interval of 10 secs
     BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
     BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
     BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
