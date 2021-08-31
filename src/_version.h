@@ -12,9 +12,12 @@
 //
 #define XTIMECOMPOSER_VERSION_STR "14.4.1"
 
-#define AUDIOMUX_VERSION_STR "0.7.5" // Not used
-#define AUDIOMUX_VERSION_NUM   0075  // Not used either
+#define AUDIOMUX_VERSION_STR "0.7.7" // Not used
+#define AUDIOMUX_VERSION_NUM   0077  // Not used either
 
+// 0077 31Aug2021 PWM=016  const unsigned array[4] = {1,2} fills pos[2] and [3] with zeroes without warning!
+//                         Too few in elements in pre_button_action_delay_ms now fixed
+// 0076 31Aug2021 PWM=015  Restarting the timer on every round
 // 0075 31Aug2021 PWM=014  Going all the way to 10% with two bore button presses (4 actions)
 //                         With this solution, the time for 30 and 20% is short since the beeping sequence
 //                         collides with the delay between button press simulations. But it ends at 10% ok

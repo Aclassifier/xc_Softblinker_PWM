@@ -35,9 +35,9 @@
 //
 #define DO_BUTTONS_POWER_UP_SIMULATE_ACTIONS 1
 //
-#define NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS 22
+#define NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS 22 // Observe too few elements in constant initialiser causes no warning! (PWM=016)
 //
-const int iof_buttons [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
+const int iof_buttons [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] = // 22 elems:
 {
     IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT,
     IOF_BUTTON_CENTER, IOF_BUTTON_CENTER,
@@ -52,7 +52,7 @@ const int iof_buttons [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
     IOF_BUTTON_LEFT,   IOF_BUTTON_LEFT
 };
 //
-const button_action_t button_actions [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
+const button_action_t button_actions [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] = // 22 elems:
 {
                                                           // state_red_LED_default
     BUTTON_ACTION_PRESSED, BUTTON_ACTION_RELEASED,        // Left LED double speed of right LED
@@ -70,10 +70,12 @@ const button_action_t button_actions [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
 //
 #define BUTTONS_POWER_UP_SIMULATE_MS 100
 //
-const pre_button_action_delay_ms [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] =
+const pre_button_action_delay_ms [NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS] = // 22 elems:
 {
     0,
     BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS,   // The longer interval of 10 secs
+    BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
+    BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
     BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
     BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
     BUTTONS_POWER_UP_SIMULATE_MS, DEFAULT_SOFTBLINK_PERIOD_MS/10,
@@ -211,6 +213,8 @@ void write_to_pwm_softblinker (
 
 // Since the task that uses this has no time-critical functions it's ok that this
 // is not a separate task, and this ok that it then blocks the user
+// Even for the case with DO_BUTTONS_POWER_UP_SIMULATE_ACTIONS==1 this is ok, since
+// if not, the indvidual beeps might soon have become one long beep
 //
 void beep (
         out buffered port:1 outP_beeper_high,
@@ -468,17 +472,17 @@ void handle_button (const int iof_button,
                             in_range_unsigned_inc_dec (ctx.states_LED_views.stable_intensity_steps_1000, 0, STABLE_INTENSITY_STEPS_DEFAULT, inc_dec_by);
 
                     if (inc_dec_by_changed_sgn) {
-                        beep (outP_beeper_high, 50, 50);
+                        beep (outP_beeper_high,  50, 50);   // Sum 100 ms
                     } else if (ctx.states_LED_views.stable_intensity_steps_1000 == 0) {
-                        beep (outP_beeper_high, 200, 250);
+                        beep (outP_beeper_high, 200, 250); // Sum 450 ms
                     } else if (ctx.states_LED_views.stable_intensity_steps_1000 == steps_01_percent) {
-                        beep (outP_beeper_high, 50, 150);
+                        beep (outP_beeper_high,  50, 150);  // Sum 200 ms
                     } else if (ctx.states_LED_views.stable_intensity_steps_1000 == steps_10_percent) {
-                        beep (outP_beeper_high, 50, 200);
+                        beep (outP_beeper_high,  50, 200);  // Sum 250 ms
                     } else if (ctx.states_LED_views.stable_intensity_steps_1000 == STABLE_INTENSITY_STEPS_DEFAULT) {
-                        beep (outP_beeper_high, 200, 250);
+                        beep (outP_beeper_high, 200, 250);  // Sum 450 ms
                     } else if (do_steps_0001) {
-                        beep (outP_beeper_high, 100, 50);
+                        beep (outP_beeper_high, 100, 50);   // Sum 150 ms
                     } else {}
 
                     // Now the other button may be used to halt that side's increment or decrement
@@ -717,6 +721,7 @@ void softblinker_user_interface_task (
 
                 iof_buttons_power_up_simulate++;
                 if (iof_buttons_power_up_simulate < NUM_BUTTONS_POWER_UP_SIMULATE_ACTIONS) {
+                    tmr :> time_ticks; // PWM=015
                     time_ticks += (XS1_TIMER_KHZ * pre_button_action_delay_ms[iof_buttons_power_up_simulate]);
                 } else {}
 
