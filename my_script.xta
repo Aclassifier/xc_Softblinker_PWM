@@ -2,6 +2,7 @@
 #
 analyze loop start
 set required - 1.1 us
+# It's in lib_pwm_softblinker
 
 # With PWM=012 solved I got this for set required - 1.0 us 
 # xta: .././my_script.xta:4: warning: route(0)     Fail (timing violation) with 13 unknowns, Num Paths: 20, Violation: 56.0 ns, Required: 1.0 us, Worst: 1.1 us, Min Core Frequency: 528 MHz

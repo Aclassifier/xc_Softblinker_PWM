@@ -15,6 +15,7 @@
 #define AUDIOMUX_VERSION_STR "0.7.7" // Not used
 #define AUDIOMUX_VERSION_NUM   0077  // Not used either
 
+// 0077 09May2025          Commit for export to GitHub
 // 0077 31Aug2021 PWM=016  const unsigned array[4] = {1,2} fills pos[2] and [3] with zeroes without warning!
 //                         Too few in elements in pre_button_action_delay_ms now fixed
 // 0076 31Aug2021 PWM=015  Restarting the timer on every round
